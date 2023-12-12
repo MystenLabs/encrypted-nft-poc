@@ -20,6 +20,8 @@ module marketplace::private_collectible {
         TransferPolicyCap
     };
     use sui::kiosk_extension as ext;
+    use sui::transfer_policy as policy;
+    use kiosk::witness_rule;
 
     /// Trying to `claim_ticket` with a non OTW struct.
     const ENotOneTimeWitness: u64 = 0;
@@ -152,7 +154,7 @@ module marketplace::private_collectible {
     /// Batch mint a vector of Collectibles specifying the fields. Lengths of
     /// the optional fields must match the length of the `image_urls` vector.
     /// Metadata vector is also optional, which
-    public fun batch_mint_and_list_with_purchase_cap<T: store>(
+    public fun batch_mint<T: store>(
         cap: &mut CollectionCap<T>,
         image_urls: vector<String>,
         names: Option<vector<String>>,
@@ -218,51 +220,79 @@ module marketplace::private_collectible {
         };
 
         // res
+    }
 
+    public fun list() {
         kiosk::list_with_purchase_cap(kiosk, cap, id, ctx);
     }
 
-    /// buyer init purchase by posting pk onchain, listing is now locked for this offer.
-    public fun init_offer(
-        self: &mut Kiosk, purchase_cap: PurchaseCap<T>, pk: vec<u8>, payment: Coin<SUI>,
+    /// Mint a single Collectible specifying the fields.
+    /// Can only be performed by the owner of the `CollectionCap`.
+    public fun mint<T: store>(
+        cap: &mut CollectionCap<T>,
+        image_url: String,
+        name: Option<String>,
+        description: Option<String>,
+        creator: Option<String>,
+        meta: Option<T>,
         ctx: &mut TxContext
-    ) {
-        // this call 
-        // 1) checks the payment is above the listing price
-        // 2) create a transfer request
-        kiosk::purchase_with_cap(kiosk, purchase_cap, payment);
+    ): Collectible<T> {
+        assert!(option::is_none(&cap.max_supply) || *option::borrow(&cap.max_supply) > cap.minted, ECapReached);
+        cap.minted = cap.minted + 1;
+
+        Collectible {
+            id: object::new(ctx),
+            image_url,
+            name,
+            description,
+            creator,
+            meta
+        }
+    }
+
+    // /// buyer init purchase by posting pk onchain, listing is now locked for this offer.
+    // public fun init_offer(
+    //     self: &mut Kiosk, purchase_cap: PurchaseCap<T>, pk: vec<u8>, payment: Coin<SUI>,
+    //     ctx: &mut TxContext
+    // ) {
+    //     // this call 
+    //     // 1) checks the payment is above the listing price
+    //     // 2) create a transfer request
+    //     kiosk::purchase_with_cap(kiosk, purchase_cap, payment);
         
-        // 3) post pubkey (pkB) to kiosk extension
-        let offer = offer::new(object::id(purchase_cap), pk, ctx);
-        let storage = ext::storage_mut(ExchangeData {}, kiosk);
-        bag::add(storage, BuyerPublicKey {}, option::some(offer));
-    }
+    //     // 3) post pubkey (pkB) to kiosk extension
+    //     let offer = offer::new(object::id(purchase_cap), pk, ctx);
+    //     let storage = ext::storage_mut(ExchangeData {}, kiosk);
+    //     bag::add(storage, BuyerPublicKey {}, option::some(offer));
+    // }
 
-    /// if x time has passed and encrypteded master key is not reveived, 
-    // then active offer is removed, payment returned
-    public fun expire_offer(
-        self: &mut Kiosk, purchase_cap: PurchaseCap<T>,
-        ctx: &mut TxContext
-    ) {
-        // check expiry of an offer
+    // /// if x time has passed and encrypteded master key is not reveived, 
+    // // then active offer is removed, payment returned
+    // public fun expire_offer(
+    //     self: &mut Kiosk, purchase_cap: PurchaseCap<T>,
+    //     ctx: &mut TxContext
+    // ) {
+    //     // check expiry of an offer
 
-        // this call release the purchase cap
-        kiosk::return_purchase_cap(kiosk, purchase_cap);
-        // remove the pk from extension
-        let storage = ext::storage_mut(ExchangeData {}, kiosk);
-        bag::remove(storage, option::some(offer));
-    }
+    //     // this call release the purchase cap
+    //     kiosk::return_purchase_cap(kiosk, purchase_cap);
+    //     // remove the pk from extension
+    //     let storage = ext::storage_mut(ExchangeData {}, kiosk);
+    //     bag::remove(storage, option::some(offer));
+    // }
 
-    /// creator posts a valid proof and its encrypted master key, collect payment
-    public fun fulfill_offer(
-        self: &mut Kiosk, request: KioskOwnerCap<T>, proof: vector<u8>
-        ctx: &mut TxContext
-    ) {
-        transfer_policy::confirm_request(request);
-        let storage = ext::storage_mut(ExchangeData {}, kiosk);
-        verify_proof(proof);
-        let data = AuthenticatorData::new(proof, encrypted_master_key);
-        bag::add(storage, AuthenticatorData {}, option::some(buy));
-    }
-
+    // /// creator posts a valid proof and its encrypted master key, collect payment
+    // public fun fulfill_offer(
+    //     self: &mut Kiosk, request: KioskOwnerCap<T>, proof: vector<u8>
+    //     ctx: &mut TxContext
+    // ) {
+    //     transfer_policy::confirm_request(request);
+    //     let storage = ext::storage_mut(ExchangeData {}, kiosk);
+    //     // pending impl after ec ops is merged to sui framework
+    //     verify_proof(proof, encrypted_master_key);
+    //     let data = AuthenticatorData::new(proof, encrypted_master_key);
+    //     bag::add(storage, AuthenticatorData {}, option::some(buy));
+    // }
+    
+    // partial reveal impl
 }

@@ -11,10 +11,11 @@ import {
   import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
   import { TransactionBlock } from "@mysten/sui.js/transactions";
   import { sha256 } from "js-sha256";
+
 //   import { GAME_V2_PACKAGE_ID, getExtension } from "./game_v2";
 //   import { signAndExecute } from "./transactions";
   
-  const client = new SuiClient({
+const client = new SuiClient({
     url: getFullnodeUrl("devnet"),
   });
   
