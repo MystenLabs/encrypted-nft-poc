@@ -62,7 +62,7 @@ The move code for this template is located in the `move` directory. To publish
 it, you can enter the `move` directory, and publish it with the Sui CLI:
 
 ```bash
-cd move
+cd move/counter
 sui client publish --gas-budget 100000000 counter
 ```
 
@@ -76,9 +76,18 @@ export const DEVNET_COUNTER_PACKAGE_ID = "<YOUR_PACKAGE_ID>";
 Now that we have published the move code, and update the package ID, we can
 start the app.
 
+To build move:
+```bash
+sui move build
+```
+
+To run move tests:
+```bash
+sui move test
+```
 ## Starting your dApp
 
-To install dependencies you can run
+To install dependencies you can run in root dir
 
 ```bash
 pnpm install
