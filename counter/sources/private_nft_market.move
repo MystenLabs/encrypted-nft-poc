@@ -23,6 +23,7 @@ module counter::private_nft_market {
         id: UID,
         balance: Balance<SUI>,
         listings: Bag, // nft_id => e_nft
+        owner: address
     }
 
     // marketplace cap that the creator has
@@ -36,7 +37,6 @@ module counter::private_nft_market {
         id: UID,
         item_id: ID,
         image_url: String, // s3 or ipfs image url
-        hash: String, // a hash of the image, can verify content at url == hash of the downloaded image
         price: Balance<SUI>,
     }
 
@@ -61,6 +61,16 @@ module counter::private_nft_market {
         item_id: ID // refers to the ID of EncryptedNFT
     }
 
+    // // Basic sigma protocol for proving equality of two ElGamal encryptions.
+    // // See https://crypto.stackexchange.com/questions/30010/is-there-a-way-to-prove-equality-of-plaintext-that-was-encrypted-using-different
+    // struct EqualityProof has drop, store {
+    //     a1: Element<ristretto255::G>,
+    //     a2: Element<ristretto255::G>,
+    //     a3: Element<ristretto255::G>,
+    //     z1: Element<ristretto255::Scalar>,
+    //     z2: Element<ristretto255::Scalar>,
+    // }
+
     /// Event on whether the signature is verified
     struct OfferReceived has copy, drop {
         buyer: address,
@@ -73,13 +83,22 @@ module counter::private_nft_market {
         item_id: ID
     }
 
-    /// Create the marketplace
-    fun init(ctx: &mut TxContext) {
-        transfer::share_object(Marketplace {
+    /// Create and share a Marketplace object.
+    public fun create(ctx: &mut TxContext) {
+        let marketplace = Marketplace {
             id: object::new(ctx),
             balance: balance::zero(),
             listings: bag::new(ctx),
-        })
+            owner: tx_context::sender(ctx),
+        };
+        
+        let cap = MarketplaceCap {
+            id: object::new(ctx),
+            for: object::id(&marketplace)
+        };
+
+        transfer::share_object(marketplace);
+        sui::transfer::transfer(cap, tx_context::sender(ctx));
     }
 
     // Figure out a way to add listings to our marketp  lace.
@@ -115,21 +134,31 @@ module counter::private_nft_market {
         cap: &MarketplaceCap, 
         item_id: ID,
         proof: vector<u8>,
+        // proof: EqualityProof,
         encrypted_master_key: EncryptedMasterKey,
     ) {
         assert!(has_access(marketplace, cap), ENotOwner);
         // remove the offer DF
         let Offer { buyer, payment, pk: _, item_id: _ }  = df::remove<PurchaseOffer, Offer>(&mut marketplace.id, PurchaseOffer { id: item_id });
-        // if !verify_proof(proof, pk) { return error };
+
+        // equility_verify(&pk1, &pk2, &enc1, &enc2, &proof);
+        // pub struct ConsistencyProof<ScalarType, G1Element> {
+        // pub s1: ScalarType,
+        // pub s2: ScalarType,
+        // pub u1: G1Element,
+        // pub u2: G1Element,
+        // pub v: G1Element,
+        // }
         let enft: EncryptedNFT = bag::remove(&mut marketplace.listings, item_id);
         balance::join(&mut marketplace.balance, payment);
         transfer::public_transfer(enft, buyer);
         transfer::public_transfer(encrypted_master_key, buyer);
         event::emit(OfferCompleted { buyer: buyer, item_id: item_id });
     }
-
+    // todo: resell flow
+    
     // // similar to accept_offer but we just return the `payment` to the `bidder`.
-    // public fun reject_offer() {
+    // public fun cancel_offer() {
     //     marketplace: &mut Marketplace, 
     //     _: &MarketplaceCap, 
     //     item_id: ID,

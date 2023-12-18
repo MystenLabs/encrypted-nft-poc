@@ -9,7 +9,7 @@ import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { Button, Flex, Heading, Text } from "@radix-ui/themes";
 import { useNetworkVariable } from "./networkConfig";
 
-export function Counter({ id }: { id: string }) {
+export function Marketplace({ id }: { id: string }) {
   const client = useSuiClient();
   const currentAccount = useCurrentAccount();
   const counterPackageId = useNetworkVariable("counterPackageId");
@@ -22,18 +22,23 @@ export function Counter({ id }: { id: string }) {
     },
   });
 
-  const executeMoveCall = (method: "increment" | "reset") => {
+  const executeMoveCall = (method: "add_listing" | "init_offer" | "accept_offer") => {
     const txb = new TransactionBlock();
 
-    if (method === "reset") {
+    if (method === "add_listing") {
       txb.moveCall({
         arguments: [txb.object(id), txb.pure.u64(0)],
-        target: `${counterPackageId}::counter::set_value`,
+        target: `${counterPackageId}::private_nft_market::add_listing`,
+      });
+    } else if (method === "init_offer") {
+      txb.moveCall({
+        arguments: [txb.object(id), txb.pure.u64(0)],
+        target: `${counterPackageId}::private_nft_market::init_offer`,
       });
     } else {
       txb.moveCall({
         arguments: [txb.object(id)],
-        target: `${counterPackageId}::counter::increment`,
+        target: `${counterPackageId}::private_nft_market::accept_offer`,
       });
     }
 
@@ -62,30 +67,33 @@ export function Counter({ id }: { id: string }) {
   if (!data.data) return <Text>Not found</Text>;
 
   const ownedByCurrentAccount =
-    getCounterFields(data.data)?.owner === currentAccount?.address;
+  getMarketplace(data.data)?.owner === currentAccount?.address;
 
   return (
     <>
-      <Heading size="3">Counter {id}</Heading>
+      <Heading size="3">Marketplace ID {id}</Heading>
 
       <Flex direction="column" gap="2">
-        <Text>Count: {getCounterFields(data.data)?.value}</Text>
+        <Text>Marketplace: {getMarketplace(data.data)?.listings}</Text>
         <Flex direction="row" gap="2">
-          <Button onClick={() => executeMoveCall("increment")}>
-            Increment
-          </Button>
           {ownedByCurrentAccount ? (
-            <Button onClick={() => executeMoveCall("reset")}>Reset</Button>
+            <Button onClick={() => executeMoveCall("accept_offer")}> Accept Offer </Button>
           ) : null}
+          {ownedByCurrentAccount ? (
+            <Button onClick={() => executeMoveCall("add_listing")}> Add Listing </Button>
+          ) : null}
+
         </Flex>
+        <Button onClick={() => executeMoveCall("init_offer")}> Submit to Buy </Button>
       </Flex>
     </>
   );
 }
-function getCounterFields(data: SuiObjectData) {
+
+function getMarketplace(data: SuiObjectData) {
   if (data.content?.dataType !== "moveObject") {
     return null;
   }
-
-  return data.content.fields as { value: number; owner: string };
+  console.log(data.content.fields);
+  return data.content.fields as { id: string, balance: number; owner: string; listings: string[]; };
 }

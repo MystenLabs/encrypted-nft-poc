@@ -3,7 +3,7 @@
 
 #[test_only]
 module counter::private_colletible_tests {
-    use counter::private_collectible;
+    use counter::private_nft_market;
     use std::string;
     use sui::balance;
 
@@ -12,12 +12,12 @@ module counter::private_colletible_tests {
     /// is well-formed.
     fun test_transfer_action() {
         let ctx = &mut test::ctx(@0x0);
-        let marketplace = private_collectible::init(ctx);
+        let marketplace = private_nft_market::create(ctx);
         let nft = EncryptedNFT {
             image_url: string::utf8(vector[]),
             hash: string::utf8(vector[]), 
             price: balance::value(100)
         };
-        let token = private_collectible::add_listings(marketplace, nft, ctx);
+        let token = private_nft_market::add_listings(marketplace, nft, ctx);
     }
 }

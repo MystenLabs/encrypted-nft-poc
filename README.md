@@ -1,4 +1,4 @@
-# Sui dApp Starter Template
+# Encrypted NFT marketplace
 
 This dApp was created using `@mysten/create-dapp` that sets up a simple React
 Client dApp using the following tools:
@@ -59,10 +59,9 @@ curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
 ### Publishing the move package
 
 The move code for this template is located in the `move` directory. To publish
-it, you can enter the `move` directory, and publish it with the Sui CLI:
+it, you can enter the parent directory of `counter` and publish it with the Sui CLI:
 
 ```bash
-cd move/counter
 sui client publish --gas-budget 100000000 counter
 ```
 

@@ -6,7 +6,7 @@ import {
 } from "@mysten/dapp-kit";
 import { useNetworkVariable } from "./networkConfig";
 
-export function CreateCounter({
+export function CreateMarketplace({
   onCreated,
 }: {
   onCreated: (id: string) => void;
@@ -23,7 +23,7 @@ export function CreateCounter({
           create();
         }}
       >
-        Create Counter
+        Create Marketplace
       </Button>
     </Container>
   );
@@ -33,7 +33,7 @@ export function CreateCounter({
 
     txb.moveCall({
       arguments: [],
-      target: `${counterPackageId}::counter::create`,
+      target: `${counterPackageId}::private_nft_market::create`,
     });
 
     signAndExecute(
@@ -51,7 +51,7 @@ export function CreateCounter({
               digest: tx.digest,
             })
             .then(() => {
-              const objectId = tx.effects?.created?.[0]?.reference?.objectId;
+              const objectId = tx.effects?.created?.[1]?.reference?.objectId;
 
               if (objectId) {
                 onCreated(objectId);

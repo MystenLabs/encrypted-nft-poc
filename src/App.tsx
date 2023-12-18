@@ -2,12 +2,12 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui.js/utils";
 import { Box, Container, Flex, Heading } from "@radix-ui/themes";
 import { useState } from "react";
-import { Counter } from "./Counter";
-import { CreateCounter } from "./CreateCounter";
+import { Marketplace } from "./Marketplace";
+import { CreateMarketplace } from "./CreateMarketplace";
 
 function App() {
   const currentAccount = useCurrentAccount();
-  const [counterId, setCounter] = useState(() => {
+  const [marketplaceId, setMarketplace] = useState(() => {
     const hash = window.location.hash.slice(1);
     return isValidSuiObjectId(hash) ? hash : null;
   });
@@ -24,7 +24,7 @@ function App() {
         }}
       >
         <Box>
-          <Heading>dApp Starter Template</Heading>
+          <Heading>Encrypted NFT Marketplace</Heading>
         </Box>
 
         <Box>
@@ -39,13 +39,13 @@ function App() {
           style={{ background: "var(--gray-a2)", minHeight: 500 }}
         >
           {currentAccount ? (
-            counterId ? (
-              <Counter id={counterId} />
+            marketplaceId ? (
+              <Marketplace id={marketplaceId} />
             ) : (
-              <CreateCounter
+              <CreateMarketplace
                 onCreated={(id) => {
                   window.location.hash = id;
-                  setCounter(id);
+                  setMarketplace(id);
                 }}
               />
             )
