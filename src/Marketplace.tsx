@@ -37,6 +37,11 @@ export function Marketplace({ id }: { id: string }) {
       });
     } else if (method === "init_offer") {
       // todo(george): to check how to split coin
+            // const [coin] = txb.splitCoins(txb.gas, [10]);
+      // // txb.setGasBudget(10000000);
+
+      // console.log("coin", coin);
+
       txb.moveCall({
         arguments: [txb.object(
           "0x7749d94a18d52ef195f2e4b009ab2a0a95afc1faacbcdd2e4bbd55be40f1b849"
