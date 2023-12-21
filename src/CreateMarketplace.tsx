@@ -51,7 +51,9 @@ export function CreateMarketplace({
               digest: tx.digest,
             })
             .then(() => {
-              const objectId = tx.effects?.created?.[1]?.reference?.objectId;
+              // obj[0] = marketplaceCap
+              // obj[1] = marketplace 
+              const objectId = tx.effects?.created?.[0]?.reference?.objectId;
 
               if (objectId) {
                 onCreated(objectId);

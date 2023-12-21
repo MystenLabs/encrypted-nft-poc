@@ -72,12 +72,11 @@ to save that package ID to the `src/constants.ts` file as `PACKAGE_ID`:
 export const DEVNET_COUNTER_PACKAGE_ID = "<YOUR_PACKAGE_ID>";
 ```
 
-Now that we have published the move code, and update the package ID, we can
-start the app.
+Now that we have published the move code, and update the package ID, we can start the app.
 
 To build move:
 ```bash
-sui move build
+cd counter && sui move build
 ```
 
 To run move tests:
