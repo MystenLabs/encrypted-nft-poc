@@ -1,2 +1,4 @@
 node_modules
 counter/build
+publish/.publish.res.json
+.env
