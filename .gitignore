@@ -1,4 +1,16 @@
-node_modules
+# dapp frontend
+
+app/node_modules
+app/src/counter/build
+app/publish/.publish.res.json
+app/dist
+
+# move
 counter/build
-publish/.publish.res.json
+
+# rust cli
+cli/target/
+*.key
+
+# misc
 .env

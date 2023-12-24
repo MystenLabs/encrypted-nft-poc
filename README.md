@@ -88,6 +88,7 @@ sui move test
 To install dependencies you can run in root dir
 
 ```bash
+cd app 
 pnpm install
 ```
 
