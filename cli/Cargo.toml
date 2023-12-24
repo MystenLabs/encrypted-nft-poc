@@ -1,0 +1,23 @@
+[package]
+name = "enft-cli"
+version = "0.1.1"
+license = "Apache-2.0"
+authors = ["Mysten Labs <build@mystenlabs.com>"]
+edition = "2021"
+publish = ["crates-io"]
+description = "Command line tools for encrypted marketplace offchain utilities."
+repository = "https://github.com/MystenLabs/encrypted-nft-poc"
+
+[dependencies]
+clap = { version = "4.1.8", features = ["derive"] }
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "c9083bcc88b219480a6ad881988e5709252551ba", features = ["experimental"]}
+rand = "0.8.4"
+exitcode = "1.1.2"
+
+[dev-dependencies]
+assert_cmd = "2.0.0"
+regex = "1.5.4"
+
+[[bin]]
+name = "enft-cli"
+path = "src/enft_commands.rs"
