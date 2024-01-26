@@ -6,7 +6,7 @@ app/publish/.publish.res.json
 app/dist
 
 # move
-counter/build
+build/
 
 # rust cli
 cli/target/
