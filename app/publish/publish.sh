@@ -34,7 +34,7 @@ echo "Admin address used for publishing: ${ACTIVE_ADMIN_ADDRESS}"
 ACTIVE_NETWORK=$(sui client active-env)
 echo "Environment used is: ${ACTIVE_NETWORK}"
 
-publish_res=$(sui client publish --gas-budget 2000000000 --json ../counter/)
+publish_res=$(sui client publish --gas-budget 2000000000 --json ../../counter/)
 
 echo ${publish_res} >.publish.res.json
 
