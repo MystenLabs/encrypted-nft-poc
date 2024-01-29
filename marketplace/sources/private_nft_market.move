@@ -3,63 +3,60 @@
 
 /// The module that defines a private NFT marketplace that creator can list encrypted nft and its hash
 module counter::private_nft_market {
-    use sui::dynamic_field::{Self as df};
-    use sui::bag::{Self, Bag};
-    use sui::tx_context::{Self, TxContext};
-    use sui::object::{Self, UID, ID};
-    use sui::coin::{Self, Coin, join};
-    use sui::sui::SUI;
-    use sui::balance::{Self, Balance};
-    use std::string::String;
-    use sui::transfer;
-    use sui::event;
 
-    const EItemLockedByOffer: u64 = 0;
-    const EItemDoesNotExist: u64 = 1;
+    use sui::coin::{Self, Coin};
+    use sui::dynamic_object_field as dof;
+    use sui::event;
+    use sui::object::{Self, UID, ID};
+    use sui::sui::SUI;
+    use sui::table::{Self, Table};
+    use sui::transfer;
+    use sui::tx_context::{Self, TxContext};
+    
+
+    use std::option::{Self, Option};
+    use std::string::String;
+
+
+    const EItemNotListed: u64 = 1;
     const EProofNotVerified: u64 = 2;
-    const ENotOwner: u64 = 3;
-    const EOfferNotEnough: u64 = 4;
+    const EIncorrectPrice: u64 = 3;
+    const ENotYourListing: u64 = 4;
+    const ENotYourOffer: u64 = 5;
+    const ENoOfferForItem: u64 = 6;
+    const EAnOfferAlreadyExists: u64 = 7;
 
     // Marketplace -> Shared object
     struct Marketplace has key {
         id: UID,
-        balance: Balance<SUI>,
-        listings: Bag, // item_id => e_nft
-        owner: address
+        total_listings: u64,
+        listings: Table<ID, Listing>,
+        offers: Table<ID, Offer>
     }
 
-    // marketplace cap that the creator has
-    struct MarketplaceCap has key, store {
-        id: UID, 
-        for: ID // marketplace id
+    /// Used as value for the table that tracks the listings.
+    struct Listing has store {
+        nft: ID,
+        price: u64,
+        seller: address
     }
+    
 
     // the NFT type we're using. We can also make this generic but keeping this like this for simplicity.
     struct EncryptedNFT has key, store {
         id: UID,
-        item_id: ID,
         image_url: String, // s3 or ipfs image url, todo: use metadata with display
         price: u64,
+        encrypted_master_key: Option<vector<u8>> // Design Decision: Instead of Option we can use 0x0 as "null".
     }
 
-    // the NFT type we're using. We can also make this generic but keeping this like this for simplicity.
-    struct EncryptedMasterKey has key, store {
-        id: UID,
-        item_id: ID,
-        encrypted_master_key: vector<u8>
-    }
-
-    // the DF key to attach an offer 
-    struct PurchaseOffer has copy, store, drop {
-        id: ID
-    }
-
-    // An Offer's metadata.
+    /// Represents the intent of a buyer to purchase.
+    /// Contains the public key of the buyer.
     struct Offer has store {
         buyer: address,
-        payment: Balance<SUI>,
+        payment: Coin<SUI>,
         pk: vector<u8>,
-        item_id: ID // refers to the ID of EncryptedNFT
+        nft: ID // refers to the ID of EncryptedNFT
     }
 
     // // Basic sigma protocol for proving equality of two ElGamal encryptions.
@@ -72,91 +69,121 @@ module counter::private_nft_market {
     //     z2: Element<ristretto255::Scalar>,
     // }
 
+    // Events
+
+    /// Emitted on each new list.
+    struct ItemListed has copy, drop {
+        nft: ID,
+        price: u64,
+        seller: address
+    }
+
     /// Event on whether the signature is verified
     struct OfferReceived has copy, drop {
         buyer: address,
-        item_id: ID
+        nft: ID
     }
 
     /// Event on whether the signature is verified
     struct OfferCompleted has copy, drop {
         buyer: address,
-        item_id: ID
+        nft: ID
     }
 
+    // Functions    
+
+
     /// Create and share a Marketplace object.
-    public entry fun create(ctx: &mut TxContext) {
+   fun init(ctx: &mut TxContext) {
+        let marketplace_id = object::new(ctx);
         let marketplace = Marketplace {
-            id: object::new(ctx),
-            balance: balance::zero(),
-            listings: bag::new(ctx),
-            owner: tx_context::sender(ctx),
-        };
-        
-        let cap = MarketplaceCap {
-            id: object::new(ctx),
-            for: object::id(&marketplace)
+            id: marketplace_id ,
+            total_listings: 0,
+            listings: table::new<ID, Listing>(ctx),
+            offers: table::new<ID, Offer>(ctx)
         };
 
         transfer::share_object(marketplace);
-        sui::transfer::transfer(cap, tx_context::sender(ctx));
     }
 
-    // Figure out a way to add listings to our marketplace.
-    public entry fun add_listing(marketplace: &mut Marketplace, cap: &MarketplaceCap, price: u64, image_url: String, ctx: &mut TxContext) {
-        assert!(has_access(marketplace, cap), ENotOwner);
+    // Called by the seller or creator.
+    public entry fun list(
+        marketplace: &mut Marketplace,
+        price: u64,
+        image_url: String,
+        ctx: &mut TxContext)
+    {
         let id = object::new(ctx);
         let item_id = object::uid_to_inner(&id);
         let nft = EncryptedNFT {
-            id: id,
-            item_id: item_id,
+            id,
             image_url: image_url,
             price: price,
+            encrypted_master_key: option::none<vector<u8>>()
         };
-        // todo(george): maybe im using the bag wrong?
-        bag::add(&mut marketplace.listings, nft.item_id, nft);
+        let seller: address = tx_context::sender(ctx);
+        table::add<ID, Listing>(&mut marketplace.listings, item_id,
+            Listing {
+                nft: item_id,
+                price,
+                seller
+            }
+        );
+        dof::add<ID, EncryptedNFT>(&mut marketplace.id, item_id, nft);
+        marketplace.total_listings = marketplace.total_listings + 1;
+
+        event::emit(ItemListed{
+            nft: item_id,
+            price,
+            seller
+        });
     }
 
-    // functionality for the buyer
-    // ID = ID of the NFT I am putting an offer for.
-    public entry fun init_offer(
+    
+    /// Called by the buyer.
+    public entry fun buy_offer(
         marketplace: &mut Marketplace, 
-        item_id: ID, 
+        nft: ID, 
         payment: Coin<SUI>, 
         pk: vector<u8>, 
         ctx: &mut TxContext
     ) {
-        assert!(bag::contains(&marketplace.listings, item_id), EItemDoesNotExist);
-        let item: &EncryptedNFT = bag::borrow(&marketplace.listings, item_id);
+        assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
+        // For now multiple offers are not possible.
+        assert!(table::contains<ID, Offer>(&marketplace.offers, nft), EAnOfferAlreadyExists);
+        let listing = table::borrow<ID, Listing>(&marketplace.listings, nft);
+        assert!(coin::value(&payment) == listing.price, EIncorrectPrice);
+        // Design decision:
+        // Here we should check if the public key corresponds to address.
+        // This will require the user to provide the flag.
+
         let buyer = tx_context::sender(ctx);
-
-        let pmt = coin::into_balance(payment);
-        assert!(balance::value(&pmt) >= item.price, EOfferNotEnough);
-
-        // 2. TODO: Check if there's already a DF (offer) for that ID.
-
-        df::add(&mut marketplace.id, PurchaseOffer { id: item_id }, Offer {
-            buyer: buyer,
-            payment: pmt, 
+        table::add<ID, Offer>(&mut marketplace.offers, nft, Offer{
+            buyer,
+            payment,
             pk,
-            item_id,
+            nft
         });
-        event::emit(OfferReceived { buyer: buyer, item_id: item_id });
+
+        event::emit(OfferReceived { buyer, nft });
     }
 
-    /// accept the offer as the creator
+    /// Called by seller to accept the offer.
     public entry fun accept_offer(
         marketplace: &mut Marketplace, 
-        cap: &MarketplaceCap, 
-        item_id: ID,
-        proof: vector<u8>,
+        nft: ID,
+        _proof: vector<u8>,
         // proof: EqualityProof,
         encrypted_master_key: vector<u8>,
         ctx: &mut TxContext
     ) {
-        assert!(has_access(marketplace, cap), ENotOwner);
-        // remove the offer DF
-        let Offer { buyer, payment, pk: _, item_id: _ }  = df::remove<PurchaseOffer, Offer>(&mut marketplace.id, PurchaseOffer { id: item_id });
+        assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
+        assert!(table::contains<ID, Offer>(&marketplace.offers, nft), ENoOfferForItem);
+        let Listing {nft, price: _, seller} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        assert!(seller == tx_context::sender(ctx), ENotYourListing);
+        
+        
+        let Offer { buyer, payment, pk: _, nft: _ }  = table::remove<ID, Offer>(&mut marketplace.offers, nft);
 
         // equility_verify(&pk1, &pk2, &enc1, &enc2, &proof);
         // pub struct ConsistencyProof<ScalarType, G1Element> {
@@ -167,32 +194,29 @@ module counter::private_nft_market {
         // pub v: G1Element,
         // }
 
-        let enft: EncryptedNFT = bag::remove(&mut marketplace.listings, item_id);
-        let enc_mk = EncryptedMasterKey {
-            id: object::new(ctx),
-            item_id: item_id,
-            encrypted_master_key: encrypted_master_key
-        };
+        let enft: EncryptedNFT = dof::remove(&mut marketplace.id, nft);
+        enft.encrypted_master_key = option::some<vector<u8>>(encrypted_master_key);
+        // this cannot underflow since a listing existed
+        marketplace.total_listings = marketplace.total_listings - 1;
 
-        balance::join(&mut marketplace.balance, payment);
         transfer::public_transfer(enft, buyer);
-        transfer::public_transfer(enc_mk, buyer);
-        event::emit(OfferCompleted { buyer: buyer, item_id: item_id });
-    }
-    // todo: resell flow
-    
-    // // similar to accept_offer but we just return the `payment` to the `bidder`.
-    // public fun cancel_offer() {
-    //     marketplace: &mut Marketplace, 
-    //     _: &MarketplaceCap, 
-    //     item_id: ID,
-    //     proof: vector<u8>
-    // } {
-    //     assert!(item_id, 0);
-    // }
+        transfer::public_transfer(payment, seller);
 
-    /// Check whether the `MarketplaceCap` matches the `Marketplace`.
-    public entry fun has_access(marketplace: &mut Marketplace, cap: &MarketplaceCap): bool {
-        object::id(marketplace) == cap.for
+        event::emit(OfferCompleted { buyer, nft });
+    }
+
+    public fun cancel_listing(nft: ID, marketplace: &mut Marketplace, ctx: &mut TxContext): EncryptedNFT {
+        assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
+        let Listing {nft, price: _, seller} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        assert!(seller == tx_context::sender(ctx), ENotYourListing);
+        marketplace.total_listings = marketplace.total_listings - 1;
+        dof::remove<ID, EncryptedNFT>(&mut marketplace.id, nft)
+    }
+
+    public fun cancel_offer(nft: ID, marketplace: &mut Marketplace, ctx: &mut TxContext): Coin<SUI> {
+        assert!(table::contains<ID, Offer>(&marketplace.offers, nft), ENoOfferForItem);
+        let Offer { buyer, payment, pk: _, nft: _ }  = table::remove<ID, Offer>(&mut marketplace.offers, nft);
+        assert! (buyer == tx_context::sender(ctx), ENotYourOffer);
+        payment
     }
 }
