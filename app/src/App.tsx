@@ -2,8 +2,7 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { isValidSuiObjectId } from "@mysten/sui.js/utils";
 import { Box, Container, Flex, Heading } from "@radix-ui/themes";
 import { useState } from "react";
-import { Marketplace } from "./Marketplace";
-import { CreateMarketplace } from "./CreateMarketplace";
+import Marketplace from "./components/Marketplace";
 
 function App() {
   const currentAccount = useCurrentAccount();
@@ -38,20 +37,7 @@ function App() {
           px="4"
           style={{ background: "var(--gray-a2)", minHeight: 500 }}
         >
-          {currentAccount ? (
-            marketplaceId ? (
-              <Marketplace id={marketplaceId} />
-            ) : (
-              <CreateMarketplace
-                onCreated={(id) => {
-                  window.location.hash = id;
-                  setMarketplace(id);
-                }}
-              />
-            )
-          ) : (
-            <Heading>Please connect your wallet</Heading>
-          )}
+          <Marketplace />
         </Container>
       </Container>
     </>
