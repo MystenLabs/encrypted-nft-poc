@@ -1,15 +1,24 @@
 import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 
+/* TO DELETE:
+Sample images:
+https://iili.io/JcDET9R.png
+https://iili.io/JcDEgDB.png
+https://iili.io/JcDEbNp.png
+*/
 type Network = "mainnet" | "testnet" | "devnet" | "localnet";
-interface listResponse {
+export interface Listing {
   nft: string;
   price: string;
   seller: string;
+  image: string
 }
+
 
 const pkg = import.meta.env.VITE_PACKAGE_ID as string;
 const marketplace = import.meta.env.VITE_MARKETPLACE as string;
+const listings = import.meta.env.VITE_LISTINGS_TABLE as string;
 
 export const useMarket = () => {
   const client = new SuiClient({
@@ -74,7 +83,34 @@ export const useMarket = () => {
     return tx;
   };
 
-  //TODE : Reads
+  const get16NFTs = async (cursor: string| null = null): Promise<Listing[]> => {
+    const response: any = await client.getDynamicFields({
+      parentId: listings,
+      limit: 16,
+      cursor
+    });
+    const keys = response.data.map((item: any) => {
+      return item.name.value;
+    });
+    const items = [];
+    for (let key of keys) {
+      const item: any = await client.getDynamicFieldObject({
+        parentId: listings,
+        name: {
+          value: key,
+          type: "0x2::object::ID",
+        },
+      });
+      const fields = item.data.content.fields.value.fields;
+      items.push({
+        seller: fields.seller as string,
+        nft: fields.nft as string,
+        image: fields.image as string,
+        price: fields.price as string,
+      });
+    }
+    return items;
+  };
 
-  return { list, buyOffer, acceptOffer };
+  return { list, buyOffer, acceptOffer, get16NFTs };
 };

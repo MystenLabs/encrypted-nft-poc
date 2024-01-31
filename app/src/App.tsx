@@ -1,26 +1,32 @@
-
-import { isValidSuiObjectId } from "@mysten/sui.js/utils";
-import { Box, Container, Flex, Heading } from "@radix-ui/themes";
-import { useState } from "react";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { Box } from "@radix-ui/themes";
 import Marketplace from "./components/Marketplace";
 import TopBar from "./components/Topbar";
-
+import "./styles/global.css";
+import WelcomePage from "./components/WelcomePage";
 
 function App() {
-
+  const currentAcc = useCurrentAccount();
+  if (currentAcc == null) {
+    return (
+      <>
+        <WelcomePage />
+      </>
+    );
+  }
   return (
     <>
       <TopBar />
-      <Container>
-        <Container
+      <Box>
+        <Box
           mt="5"
           pt="2"
           px="4"
           style={{ background: "var(--gray-a2)", minHeight: 500 }}
         >
           <Marketplace />
-        </Container>
-      </Container>
+        </Box>
+      </Box>
     </>
   );
 }

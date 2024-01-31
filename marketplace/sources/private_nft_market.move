@@ -38,7 +38,8 @@ module counter::private_nft_market {
     struct Listing has store {
         nft: ID,
         price: u64,
-        seller: address
+        seller: address,
+        image: String
     }
     
 
@@ -71,11 +72,12 @@ module counter::private_nft_market {
 
     // Events
 
+    // Added the image here to make things easier for the backend.
     /// Emitted on each new list.
     struct ItemListed has copy, drop {
         nft: ID,
         price: u64,
-        seller: address
+        seller: address,
     }
 
     /// Event on whether the signature is verified
@@ -126,7 +128,8 @@ module counter::private_nft_market {
             Listing {
                 nft: item_id,
                 price,
-                seller
+                seller,
+                image: image_url
             }
         );
         dof::add<ID, EncryptedNFT>(&mut marketplace.id, item_id, nft);
@@ -135,7 +138,7 @@ module counter::private_nft_market {
         event::emit(ItemListed{
             nft: item_id,
             price,
-            seller
+            seller,
         });
     }
 
@@ -179,7 +182,7 @@ module counter::private_nft_market {
     ) {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
         assert!(table::contains<ID, Offer>(&marketplace.offers, nft), ENoOfferForItem);
-        let Listing {nft, price: _, seller} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        let Listing {nft, price: _, seller, image: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
         assert!(seller == tx_context::sender(ctx), ENotYourListing);
         
         
@@ -207,7 +210,7 @@ module counter::private_nft_market {
 
     public fun cancel_listing(nft: ID, marketplace: &mut Marketplace, ctx: &mut TxContext): EncryptedNFT {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
-        let Listing {nft, price: _, seller} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        let Listing {nft, price: _, seller, image: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
         assert!(seller == tx_context::sender(ctx), ENotYourListing);
         marketplace.total_listings = marketplace.total_listings - 1;
         dof::remove<ID, EncryptedNFT>(&mut marketplace.id, nft)
