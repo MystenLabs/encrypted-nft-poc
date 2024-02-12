@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Flex } from "@radix-ui/themes";
 import { useMarket, Listing } from "../web3hooks";
-import NFTCard from "./NFTCard";
+import NFTCard from "../components/NFTCard";
 import "../styles/marketplace.css";
 
 const Marketplace = () => {
@@ -35,8 +35,9 @@ const Marketplace = () => {
                 className="nft-card"
                 key={index}
                 price={listing.price}
-                name={listing.seller}
+                name={listing.name}
                 image={listing.image}
+                id={listing.id}
               />
             )
           })}

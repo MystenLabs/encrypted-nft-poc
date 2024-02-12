@@ -12,7 +12,9 @@ export interface Listing {
   nft: string;
   price: string;
   seller: string;
-  image: string
+  image: string;
+  name: string;
+  id: string;
 }
 
 
@@ -26,7 +28,7 @@ export const useMarket = () => {
   });
 
   // TODO:  Validate URL
-  const list = (price: string, imgURL: string): TransactionBlock => {
+  const list = (price: string, imgURL: string, name: string): TransactionBlock => {
     const tx = new TransactionBlock();
     tx.moveCall({
       target: `${pkg}::private_nft_market::list`,
@@ -34,6 +36,8 @@ export const useMarket = () => {
         tx.object(marketplace),
         tx.pure.u64(price),
         tx.pure.string(imgURL),
+        tx.pure.string("Ciphertext"),
+        tx.pure.string(name),
       ],
     });
 
@@ -107,6 +111,8 @@ export const useMarket = () => {
         nft: fields.nft as string,
         image: fields.image as string,
         price: fields.price as string,
+        name: fields.name as string,
+        id: key,
       });
     }
     return items;

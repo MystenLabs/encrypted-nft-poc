@@ -1,12 +1,20 @@
 import { Button } from "@radix-ui/themes";
 import icon from "../../assets/arrow-up-right.svg";
 
-const TopButton = () => {
+
+interface TopButtonProps {
+  onStartSell: ()=> void;
+}
+
+const TopButton = ({ onStartSell }: TopButtonProps) => {
+  const handleClick = () => {
+    onStartSell();
+  };
   return (
     <>
-      <Button radius="full" id="button_top">
+      <Button radius="full" id="button_top" onClick={handleClick}>
         Sell your artwork
-        <img src={icon} alt="arrow-up" />{" "}
+        <img src={icon} alt="arrow-up" />
       </Button>
     </>
   );

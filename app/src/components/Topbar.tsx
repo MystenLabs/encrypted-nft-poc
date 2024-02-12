@@ -5,7 +5,11 @@ import TopButton from "./TopButton";
 import logo from "../../assets/Logo.svg";
 import "../styles/topbar.css";
 
-const TopBar = () => {
+interface TopBarProps { 
+  onStartSell: () => void;
+}
+
+const TopBar = ({onStartSell}: TopBarProps) => {
   return (
     <>
       <Flex
@@ -34,7 +38,7 @@ const TopBar = () => {
             <TopBarSearch />
         </Box>
         <Box>
-            <TopButton />
+            <TopButton onStartSell={onStartSell} />
         </Box>
         <Box>
           <ConnectButton id="connect_button"/>
