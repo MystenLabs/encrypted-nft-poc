@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
+use fastcrypto::aes::Cipher;
 use fastcrypto::aes::{Aes256Gcm, AesKey, InitializationVector};
 use fastcrypto::encoding::{Encoding, Hex};
 use fastcrypto::groups::bls12381::{G1Element, Scalar};
@@ -17,6 +18,9 @@ use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use typenum::U12;
 
+use crate::utils::{load_and_sample_image, load_nft};
+
+pub mod utils;
 
 #[derive(Parser)]
 #[command(name = "enft-cli")]
@@ -35,8 +39,8 @@ enum Command {
     /// posted on-chain.
     Encrypt(EncryptArgs),
 
-    /// Encrypt the master key under the buyer pubkey. Output the newly 
-    /// encrypted master key and consistency proof. This is called by the 
+    /// Encrypt the master key under the buyer pubkey. Output the newly
+    /// encrypted master key and consistency proof. This is called by the
     /// seller when an NFT is transferred.
     Transfer(TransferArgs),
 
@@ -47,6 +51,10 @@ enum Command {
 
 #[derive(Parser, Clone)]
 struct EncryptArgs {
+    /// A path for the original file.
+    #[clap(short, long)]
+    image_path: String,
+
     /// A hex encoding of the master private key to encrypt with.
     #[clap(short, long)]
     master_sk: String,
@@ -61,7 +69,7 @@ struct TransferArgs {
     /// A hex encoding of the master private key to encrypt with.
     #[clap(short, long)]
     master_sk: String,
-    /// An encrypted master key under the seller's pubkey. 
+    /// An encrypted master key under the seller's pubkey.
     #[clap(short, long)]
     prev_enc_msk: String,
     /// A hex encoding of the buyer pk, i.e. pubkey to encrypt with.
@@ -153,23 +161,38 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             println!("{:?}", encrypted_msk);
 
             // Now we generate the ciphertext.
-            // First initialize an AES cipher from the seed deterministically derived from the master key. 
-            let mut rng = StdRng::from_seed(Blake2b256::digest(msk.to_byte_array()).digest,);
+            // First initialize an AES cipher from the seed deterministically derived from the master key.
+            let mut rng = StdRng::from_seed(Blake2b256::digest(msk.to_byte_array()).digest);
             let key = AesKey::generate(&mut rng);
 
-            let iv = InitializationVector::<IvSize>::generate(&mut rng);
+            let preprocessed = load_and_sample_image(args.image_path.as_str());
+            let iv = InitializationVector::<U12>::generate(&mut rng);
             let cipher = (Box::new(Aes256Gcm::<U12>::new))(key);
+            let ciphertext = cipher.encrypt(&iv, partial_nft);
 
-
+            let image = load_nft(args.image_path.as_str());
             Ok(())
         }
         Command::Transfer(args) => {
-            let prev_enc_msk: KeyEncryption<G1Element> = bcs::from_bytes(&Hex::decode(&args.prev_enc_msk).unwrap()).unwrap();
-            let buyer_pk = G1Element::from_byte_array(&Hex::decode(&args.buyer_pk).unwrap().try_into().unwrap()).unwrap();
-            let msk = G1Element::from_byte_array(&Hex::decode(&args.master_sk).unwrap().try_into().unwrap()).unwrap();
-            let seller_enc_sk = Scalar::from_byte_array(&Hex::decode(&args.seller_enc_sk).unwrap().try_into().unwrap()).unwrap();
+            let prev_enc_msk: KeyEncryption<G1Element> =
+                bcs::from_bytes(&Hex::decode(&args.prev_enc_msk).unwrap()).unwrap();
+            let buyer_pk = G1Element::from_byte_array(
+                &Hex::decode(&args.buyer_pk).unwrap().try_into().unwrap(),
+            )
+            .unwrap();
+            let msk = G1Element::from_byte_array(
+                &Hex::decode(&args.master_sk).unwrap().try_into().unwrap(),
+            )
+            .unwrap();
+            let seller_enc_sk = Scalar::from_byte_array(
+                &Hex::decode(&args.seller_enc_sk)
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
+            )
+            .unwrap();
 
-            // first generate the new encrypted master key under the buyer pk. 
+            // first generate the new encrypted master key under the buyer pk.
             let gen = <G1Element as GroupElement>::generator();
             let mut rng = rand::thread_rng();
             let encryption_randomness = <G1Element as GroupElement>::ScalarType::rand(&mut rng);
@@ -178,7 +201,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                 m_pk_to_r: buyer_pk * encryption_randomness + msk,
             };
 
-            // then generate a proof that new_enc_msk and prev_enc_msk are consistent wrt msk. 
+            // then generate a proof that new_enc_msk and prev_enc_msk are consistent wrt msk.
             let alpha: Scalar = Scalar::rand(&mut rng);
             let beta: Scalar = Scalar::rand(&mut rng);
 
