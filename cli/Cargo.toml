@@ -13,6 +13,10 @@ clap = { version = "4.1.8", features = ["derive"] }
 fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "c9083bcc88b219480a6ad881988e5709252551ba", features = ["experimental"]}
 rand = "0.8.4"
 exitcode = "1.1.2"
+serde = "1.0"
+serde_json = "1.0"
+bcs = "0.1.4"
+typenum = "1.16.0"
 
 [dev-dependencies]
 assert_cmd = "2.0.0"
