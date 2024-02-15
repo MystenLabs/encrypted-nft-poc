@@ -1,6 +1,7 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::utils::load_image;
 use crate::utils::{load_and_sample_image, save_image};
 use clap::Parser;
 use fastcrypto::aes::Cipher;
@@ -124,7 +125,7 @@ pub struct ConsistencyProof {
 pub struct FullCipherText {
     pub pixels: Vec<(usize, usize)>,
     pub iv: InitializationVector<U12>,
-    pub ciphertext: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 fn main() {
@@ -186,12 +187,13 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             let cipher = msk_to_cipher(&msk);
 
             let preprocessed = load_and_sample_image(args.image_path.as_str());
+            println!("Selected pixels: {:?}", preprocessed.selected_coordinates);
             let iv = InitializationVector::<U12>::generate(&mut rng);
-            let ciphertext = cipher.encrypt(&iv, preprocessed.selected_values.as_slice());
+            let data = cipher.encrypt(&iv, preprocessed.selected_values.as_slice());
             let full_ciphertext = FullCipherText {
                 pixels: preprocessed.selected_coordinates,
                 iv,
-                ciphertext,
+                data,
             };
             let contents = Hex::encode(bcs::to_bytes(&full_ciphertext).unwrap());
             std::fs::write("ciphertext", contents)?;
@@ -270,15 +272,22 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
         Command::Decrypt(args) => {
             let enc_msk: KeyEncryption<G1Element> =
                 bcs::from_bytes(&Hex::decode(&args.enc_master_sk).unwrap()).unwrap();
-            let ciphertext: FullCipherText =
-                bcs::from_bytes(&std::fs::read(&args.ciphertext_path).unwrap()).unwrap();
-            let obfuscated_image = std::fs::read("obfuscated_nft.png").unwrap();
+            let ciphertext: FullCipherText = bcs::from_bytes(
+                &Hex::decode(&std::fs::read_to_string(&args.ciphertext_path).unwrap()).unwrap(),
+            )
+            .unwrap();
+            let obfuscated_image = load_image("obfuscated_nft.png");
             let buyer_sk =
                 Scalar::from_byte_array(&Hex::decode(&args.buyer_sk).unwrap().try_into().unwrap())
                     .unwrap();
 
             let msk = enc_msk.m_pk_to_r - enc_msk.g_to_r * buyer_sk;
-            let original = recover_image(&obfuscated_image, ciphertext, msk);
+            println!(
+                "Recovered master sk: {:?}",
+                Hex::encode(msk.to_byte_array())
+            );
+
+            let original = recover_image(&obfuscated_image.data, ciphertext, msk);
             save_image("original_nft.png", &original);
             Ok(())
         }

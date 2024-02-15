@@ -1,8 +1,8 @@
 # CLI
 
 ```
+cd cli/
 cargo build --bin enft-cli
-
 target/debug/enft-cli -h
 
 # creator generates msk
