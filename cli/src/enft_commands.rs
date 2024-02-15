@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use fastcrypto::aes::Cipher;
+use fastcrypto::aes::{Cipher, GenericByteArray};
 use fastcrypto::aes::{Aes256Gcm, AesKey, InitializationVector};
 use fastcrypto::encoding::{Encoding, Hex};
 use fastcrypto::groups::bls12381::{G1Element, Scalar};
-use fastcrypto::hash::Blake2b256;
+use fastcrypto::hash::{Blake2b256, Sha3_512};
 use fastcrypto::serde_helpers::ToFromByteArray;
 use fastcrypto::traits::Generate;
 use fastcrypto::{
@@ -17,8 +17,8 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use typenum::U12;
-
-use crate::utils::{load_and_sample_image, load_nft};
+use typenum::U32;
+use crate::utils::{load_and_sample_image, save_image};
 
 pub mod utils;
 
@@ -106,6 +106,13 @@ pub struct ConsistencyProof {
     pub v: G1Element,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub struct FullCipherText {
+    pub pixels: Vec<(usize, usize)>,
+    pub iv: InitializationVector<U12>,
+    pub ciphertext: Vec<u8>,
+}
+
 fn main() {
     match execute(Command::parse()) {
         Ok(_) => {
@@ -121,13 +128,11 @@ fn main() {
 fn execute(cmd: Command) -> Result<(), std::io::Error> {
     match cmd {
         Command::GenerateMasterKey => {
-            let sk: Scalar = Scalar::rand(&mut rand::thread_rng());
+            let scalar: Scalar = Scalar::rand(&mut rand::thread_rng());
             let gen = G1Element::generator();
-            let pk = gen * sk;
-            let pk_str = Hex::encode(pk.to_byte_array());
-            let sk_str = Hex::encode(sk.to_byte_array());
-            println!("Master sk: {}", sk_str);
-            println!("Master pk: {}", pk_str);
+            let g1 = gen * scalar;
+            let msk = Hex::encode(g1.to_byte_array());
+            println!("Master sk: {}", msk);
             Ok(())
         }
         Command::GenerateEncryptionKey => {
@@ -150,6 +155,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                     .unwrap();
             let mut rng = rand::thread_rng();
 
+            // 1. Encrypt the master key under the given pubkey.
             let gen = <G1Element as GroupElement>::generator();
             let encryption_randomness = <G1Element as GroupElement>::ScalarType::rand(&mut rng);
             let encrypted_msk = KeyEncryption {
@@ -160,17 +166,27 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             println!("Encrypted master sk:");
             println!("{:?}", encrypted_msk);
 
-            // Now we generate the ciphertext.
+            // 2. Generate the ciphertext.
             // First initialize an AES cipher from the seed deterministically derived from the master key.
+            // i.e. the AES encryption key is derived from the master key.
             let mut rng = StdRng::from_seed(Blake2b256::digest(msk.to_byte_array()).digest);
-            let key = AesKey::generate(&mut rng);
+            let key: GenericByteArray<U32> = AesKey::generate(&mut rng);
+            let cipher = Aes256Gcm::<U12>::new(key);
 
             let preprocessed = load_and_sample_image(args.image_path.as_str());
             let iv = InitializationVector::<U12>::generate(&mut rng);
-            let cipher = (Box::new(Aes256Gcm::<U12>::new))(key);
-            let ciphertext = cipher.encrypt(&iv, partial_nft);
+            let ciphertext = cipher.encrypt(&iv, preprocessed.selected_values.as_slice());
+            let full_ciphertext = FullCipherText {
+                pixels: preprocessed.selected_coordinates,
+                iv,
+                ciphertext,
+            };
+            let contents = Hex::encode(bcs::to_bytes(&full_ciphertext).unwrap());
+            std::fs::write("ciphertext", contents)?;
+            println!("Ciphertext written to file.");
 
-            let image = load_nft(args.image_path.as_str());
+            save_image(&preprocessed.obfuscated_image);
+            println!("Obfuscated image to file.");
             Ok(())
         }
         Command::Transfer(args) => {
@@ -209,18 +225,17 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             let u2 = gen * beta;
             let v = prev_enc_msk.g_to_r * alpha - buyer_pk * beta;
 
-            let mut fiat_shamir_msg = Blake2b256::new();
-            fiat_shamir_msg.update(&mut seller_enc_sk.to_byte_array());
-            fiat_shamir_msg.update(&mut bcs::to_bytes(&prev_enc_msk).unwrap());
-            fiat_shamir_msg.update(&mut buyer_pk.to_byte_array());
-            fiat_shamir_msg.update(&mut bcs::to_bytes(&new_enc_msk).unwrap());
-            fiat_shamir_msg.update(&mut u1.to_byte_array());
-            fiat_shamir_msg.update(&mut u2.to_byte_array());
-            fiat_shamir_msg.update(&mut v.to_byte_array());
+            let mut fiat_shamir_msg = Sha3_512::new();
+            fiat_shamir_msg.update(seller_enc_sk.to_byte_array());
+            fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
+            fiat_shamir_msg.update(buyer_pk.to_byte_array());
+            fiat_shamir_msg.update(&bcs::to_bytes(&new_enc_msk).unwrap());
+            fiat_shamir_msg.update(u1.to_byte_array());
+            fiat_shamir_msg.update(u2.to_byte_array());
+            fiat_shamir_msg.update(v.to_byte_array());
 
-            let c = <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(
-                &fiat_shamir_msg.finalize().digest,
-            );
+            let digest = fiat_shamir_msg.finalize().digest;
+            let c = <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
 
             let proof = ConsistencyProof {
                 s1: seller_enc_sk * c + alpha,

@@ -10,7 +10,7 @@ repository = "https://github.com/MystenLabs/encrypted-nft-poc"
 
 [dependencies]
 clap = { version = "4.1.8", features = ["derive"] }
-fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "c9083bcc88b219480a6ad881988e5709252551ba", features = ["experimental"]}
+fastcrypto = { git = "https://github.com/MystenLabs/fastcrypto", rev = "2dc1d6e", features = ["experimental"]}
 rand = "0.8.4"
 exitcode = "1.1.2"
 serde = "1.0"

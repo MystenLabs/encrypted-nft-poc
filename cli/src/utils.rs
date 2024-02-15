@@ -13,6 +13,7 @@ pub fn load_and_sample_image(nft_path: &str) -> PreprocessedImage {
         image.to_rgba8().into_raw(),
     ]
     .concat();
+    let mut obfuscated_image = image.clone();
 
     // a list of sampled coordinates
     let mut selected_coordinates = vec![];
@@ -36,6 +37,7 @@ pub fn load_and_sample_image(nft_path: &str) -> PreprocessedImage {
                         let pixel_idx = ii * width as usize + jj;
                         for k in 4 * pixel_idx + 8..4 * pixel_idx + 12 {
                             selected_values.push(image[k]);
+                            obfuscated_image[k] = 0;
                         }
                     }
                 }
@@ -45,10 +47,22 @@ pub fn load_and_sample_image(nft_path: &str) -> PreprocessedImage {
     PreprocessedImage {
         selected_coordinates,
         selected_values,
+        obfuscated_image
     }
 }
 
-struct PreprocessedImage {
-    selected_coordinates: Vec<(usize, usize)>,
-    selected_values: Vec<u8>,
+pub struct PreprocessedImage {
+    pub selected_coordinates: Vec<(usize, usize)>,
+    pub selected_values: Vec<u8>,
+    pub obfuscated_image: Vec<u8>,
+}
+
+pub fn save_image(obfuscated_image: &Vec<u8>) {
+    let _ = image::save_buffer(
+        "obfuscated_nft.png",
+        &obfuscated_image[8..],
+        u32::from_be_bytes(obfuscated_image[0..4].try_into().unwrap()),
+        u32::from_be_bytes(obfuscated_image[4..8].try_into().unwrap()),
+        image::ColorType::Rgba8,
+    );
 }
