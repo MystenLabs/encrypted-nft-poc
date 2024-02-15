@@ -1,24 +1,22 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::utils::{load_and_sample_image, save_image};
 use clap::Parser;
-use fastcrypto::aes::{Cipher, GenericByteArray};
-use fastcrypto::aes::{Aes256Gcm, AesKey, InitializationVector};
+use fastcrypto::aes::Cipher;
+use fastcrypto::aes::InitializationVector;
 use fastcrypto::encoding::{Encoding, Hex};
 use fastcrypto::groups::bls12381::{G1Element, Scalar};
-use fastcrypto::hash::{Blake2b256, Sha3_512};
+use fastcrypto::hash::Sha3_512;
 use fastcrypto::serde_helpers::ToFromByteArray;
 use fastcrypto::traits::Generate;
 use fastcrypto::{
     groups::{FiatShamirChallenge, GroupElement, Scalar as ScalarTrait},
     hash::HashFunction,
 };
-use rand::rngs::StdRng;
-use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use typenum::U12;
-use typenum::U32;
-use crate::utils::{load_and_sample_image, save_image};
+use utils::{msk_to_cipher, recover_image};
 
 pub mod utils;
 
@@ -47,6 +45,10 @@ enum Command {
     /// Decrypt the original NFT from ciphertext. This can be done by
     /// anyone who can recover the master key and decrypt from ciphertext.
     Decrypt(DecryptArgs),
+
+    /// Decrypt the original NFT from ciphertext. This can be done by
+    /// anyone who can recover the master key and decrypt from ciphertext.
+    Verify(VerifyArgs),
 }
 
 #[derive(Parser, Clone)]
@@ -84,12 +86,24 @@ struct TransferArgs {
 struct DecryptArgs {
     /// A hex encoding of the master private key to encrypt with.
     #[clap(short, long)]
-    master_sk: String,
+    enc_master_sk: String,
 
-    /// A hex encoding of the pubkey to encrypt with.
+    /// A path to get the raw ciphertext bytes.
     #[clap(short, long)]
-    pubkey: String,
+    ciphertext_path: String,
+
+    /// A hex encoding of the buyer's private key.
+    #[clap(short, long)]
+    buyer_sk: String,
 }
+
+#[derive(Parser, Clone)]
+struct VerifyArgs {
+    /// A hex encoding of the master private key to encrypt with.
+    #[clap(short, long)]
+    serialized_proof: String,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct KeyEncryption<G1Element> {
     pub g_to_r: G1Element,
@@ -169,9 +183,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             // 2. Generate the ciphertext.
             // First initialize an AES cipher from the seed deterministically derived from the master key.
             // i.e. the AES encryption key is derived from the master key.
-            let mut rng = StdRng::from_seed(Blake2b256::digest(msk.to_byte_array()).digest);
-            let key: GenericByteArray<U32> = AesKey::generate(&mut rng);
-            let cipher = Aes256Gcm::<U12>::new(key);
+            let cipher = msk_to_cipher(&msk);
 
             let preprocessed = load_and_sample_image(args.image_path.as_str());
             let iv = InitializationVector::<U12>::generate(&mut rng);
@@ -185,7 +197,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             std::fs::write("ciphertext", contents)?;
             println!("Ciphertext written to file.");
 
-            save_image(&preprocessed.obfuscated_image);
+            save_image("obfuscated_nft.png", &preprocessed.obfuscated_image);
             println!("Obfuscated image to file.");
             Ok(())
         }
@@ -208,7 +220,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             )
             .unwrap();
 
-            // first generate the new encrypted master key under the buyer pk.
+            // first generate the newly encrypted master key under the buyer pk.
             let gen = <G1Element as GroupElement>::generator();
             let mut rng = rand::thread_rng();
             let encryption_randomness = <G1Element as GroupElement>::ScalarType::rand(&mut rng);
@@ -216,6 +228,9 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                 g_to_r: gen * encryption_randomness,
                 m_pk_to_r: buyer_pk * encryption_randomness + msk,
             };
+            let new_enc_sk = Hex::encode(bcs::to_bytes(&new_enc_msk).unwrap());
+            println!("Serialized newly encrypted master key (under buyer pk):");
+            println!("{:?}", new_enc_sk);
 
             // then generate a proof that new_enc_msk and prev_enc_msk are consistent wrt msk.
             let alpha: Scalar = Scalar::rand(&mut rng);
@@ -235,7 +250,8 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             fiat_shamir_msg.update(v.to_byte_array());
 
             let digest = fiat_shamir_msg.finalize().digest;
-            let c = <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
+            let c =
+                <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
 
             let proof = ConsistencyProof {
                 s1: seller_enc_sk * c + alpha,
@@ -252,7 +268,25 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             Ok(())
         }
         Command::Decrypt(args) => {
-            todo!()
+            let enc_msk: KeyEncryption<G1Element> =
+                bcs::from_bytes(&Hex::decode(&args.enc_master_sk).unwrap()).unwrap();
+            let ciphertext: FullCipherText =
+                bcs::from_bytes(&std::fs::read(&args.ciphertext_path).unwrap()).unwrap();
+            let obfuscated_image = std::fs::read("obfuscated_nft.png").unwrap();
+            let buyer_sk =
+                Scalar::from_byte_array(&Hex::decode(&args.buyer_sk).unwrap().try_into().unwrap())
+                    .unwrap();
+
+            let msk = enc_msk.m_pk_to_r - enc_msk.g_to_r * buyer_sk;
+            let original = recover_image(&obfuscated_image, ciphertext, msk);
+            save_image("original_nft.png", &original);
+            Ok(())
+        }
+        Command::Verify(args) => {
+            let _proof: ConsistencyProof =
+                bcs::from_bytes(&Hex::decode(&args.serialized_proof).unwrap()).unwrap();
+
+            Ok(())
         }
     }
 }
