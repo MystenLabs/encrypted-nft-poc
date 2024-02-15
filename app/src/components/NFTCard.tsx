@@ -1,42 +1,60 @@
-import { Flex, Box } from "@radix-ui/themes";
+import { Flex, Box, Tooltip } from "@radix-ui/themes";
 import { useMarket } from "../web3hooks";
 import {
   useSignAndExecuteTransactionBlock,
   useCurrentAccount,
 } from "@mysten/dapp-kit";
+import "../styles/tooltip.css";
 import SuiSymbol from "../../assets/sui-symbol.svg";
 interface NFTCardProps {
-  className: string;
   image: string;
   name: string;
   price: string;
   id: string;
+  seller: string;
+  pk: number[];
+  openModal: (id: string, pk: number[]) => void;
+  closeModal: () => void;
 }
-const NFTCard = ({ className, image, name, price, id }: NFTCardProps) => {
-  const { buyOffer } = useMarket();
+const NFTCard = ({
+  image,
+  name,
+  price,
+  id,
+  seller,
+  pk,
+  openModal
+}: NFTCardProps) => {
+  const { buyOffer, acceptOffer } = useMarket();
   const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
+
   const account = useCurrentAccount();
+  const showBorder = account?.address === seller && pk.length > 0;
   const buy = () => {
-    console.log(price);
-    const tx = buyOffer(
-      id,
-      price,
-      Array.from(account?.publicKey as Uint8Array),
-    );
-    signAndExecute(
-      {
-        transactionBlock: tx,
-        requestType: "WaitForLocalExecution",
-      },
-      {
-        onSuccess: () => {
-          console.log("Success");
+    if (showBorder) {
+      // accepting offer
+      openModal(id, pk);
+    } else {
+      const tx = buyOffer(
+        id,
+        price,
+        Array.from(account?.publicKey as Uint8Array),
+      );
+      signAndExecute(
+        {
+          transactionBlock: tx,
+          requestType: "WaitForLocalExecution",
         },
-        onError: (error) => {
-          console.log(error);
+        {
+          onSuccess: () => {
+            console.log("Success");
+          },
+          onError: (error) => {
+            console.log(error);
+          },
         },
-      },
-    );
+      );
+    }
   };
   return (
     <>
@@ -44,9 +62,13 @@ const NFTCard = ({ className, image, name, price, id }: NFTCardProps) => {
         direction={"column"}
         align-items={"flex-start"}
         align-self={"stretch"}
-        className={className}
+        className="nft-card"
         onClick={buy}
-        style={{ cursor: "pointer" }}
+        style={{
+          cursor: "pointer",
+          border: showBorder ? "4px solid #d40551" : " 0px solid transparent",
+          margin: "5px"
+        }}
       >
         <img src={image} alt={name} />
         <Box>{name}</Box>
@@ -55,7 +77,7 @@ const NFTCard = ({ className, image, name, price, id }: NFTCardProps) => {
           <img
             src={SuiSymbol}
             style={{ height: "1em", width: "auto", margin: "5px" }}
-          />{" "}
+          />
           {price.substring(0, price.length - 9)}
         </Flex>
       </Flex>
