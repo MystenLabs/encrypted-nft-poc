@@ -10,7 +10,8 @@ counter/build
 
 # rust cli
 cli/target/
-*.key
-
+cli/ciphertext
+cli/obfuscated_nft.png
+cli/original_nft.png
 # misc
 .env
