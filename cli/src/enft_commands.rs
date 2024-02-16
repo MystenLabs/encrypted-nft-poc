@@ -289,12 +289,13 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
 
             let original = recover_image(&obfuscated_image.data, ciphertext, msk);
             save_image("original_nft.png", &original);
+            println!("Original nft saved to original_nft.png. This is identical with capy.png");
             Ok(())
         }
         Command::Verify(args) => {
             let _proof: ConsistencyProof =
                 bcs::from_bytes(&Hex::decode(&args.serialized_proof).unwrap()).unwrap();
-
+            // todo
             Ok(())
         }
     }

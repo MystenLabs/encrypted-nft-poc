@@ -12,5 +12,6 @@ counter/build
 cli/target/
 cli/ciphertext
 cli/obfuscated_nft.png
+cli/original_nft.png
 # misc
 .env

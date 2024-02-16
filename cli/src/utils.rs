@@ -107,10 +107,7 @@ pub fn recover_image(
     let cipher = msk_to_cipher(&master_key);
     let plaintext = cipher.decrypt(&ciphertext.iv, &ciphertext.data).unwrap();
 
-    let width = usize::try_from(u32::from_be_bytes(
-        obfuscated_image[0..4].try_into().unwrap(),
-    ))
-    .unwrap();
+    let width = u32::from_be_bytes(obfuscated_image[0..4].try_into().unwrap()) as usize;
 
     let mut recovered = obfuscated_image.to_vec();
     let mut pt_idx = 0;
