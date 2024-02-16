@@ -13,11 +13,11 @@ function App() {
 
   const finishSell = () => {
     setShowSellPage(false);
-  }
+  };
 
   const startSell = () => {
     setShowSellPage(true);
-  }
+  };
 
   if (currentAcc == null) {
     return (
@@ -27,16 +27,12 @@ function App() {
     );
   }
   return (
-    <>
-      <TopBar onStartSell={startSell}/>
-      <Box>
-        <Box
-          style={{ background: "var(--gray-a2)", minHeight: 500 }}
-        >
-          {showSellPage ? <SellPage onFinish={finishSell}/> : <Marketplace />}
-        </Box>
+    <Box style={{ width: "100%", height: "100%" }}>
+      <TopBar onStartSell={startSell} />
+      <Box style={{ background: "var(--gray-a2)", height: "100%" }}>
+        {showSellPage ? <SellPage onFinish={finishSell} /> : <Marketplace />}
       </Box>
-    </>
+    </Box>
   );
 }
 

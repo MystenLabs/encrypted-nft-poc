@@ -1,0 +1,18 @@
+.tooltip {
+    position: relative;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 5px;
+    border-radius: 5px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+.nft-card:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+  }

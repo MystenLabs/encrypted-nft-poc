@@ -1,4 +1,4 @@
-import { Flex, Box, Tooltip } from "@radix-ui/themes";
+import { Flex, Box, Tooltip, HoverCard, Text, Link} from "@radix-ui/themes";
 import { useMarket } from "../web3hooks";
 import {
   useSignAndExecuteTransactionBlock,
@@ -23,7 +23,7 @@ const NFTCard = ({
   id,
   seller,
   pk,
-  openModal
+  openModal,
 }: NFTCardProps) => {
   const { buyOffer, acceptOffer } = useMarket();
   const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
@@ -57,7 +57,6 @@ const NFTCard = ({
     }
   };
   return (
-    <>
       <Flex
         direction={"column"}
         align-items={"flex-start"}
@@ -67,10 +66,19 @@ const NFTCard = ({
         style={{
           cursor: "pointer",
           border: showBorder ? "4px solid #d40551" : " 0px solid transparent",
-          margin: "5px"
+          margin: "5px",
         }}
       >
-        <img src={image} alt={name} />
+        <HoverCard.Root>
+          <HoverCard.Trigger>
+            <img src={image} alt={name} />
+          </HoverCard.Trigger>
+          <HoverCard.Content>
+            <Flex>
+              <Link href={`https://suiexplorer.com/object/${id}?network=${import.meta.env.VITE_ACTIVE_NETWORK}`}>{id}</Link>
+            </Flex>
+          </HoverCard.Content>
+        </HoverCard.Root>
         <Box>{name}</Box>
         <Flex direction={"row"}>
           Price:{" "}
@@ -81,7 +89,6 @@ const NFTCard = ({
           {price.substring(0, price.length - 9)}
         </Flex>
       </Flex>
-    </>
   );
 };
 

@@ -1,14 +1,10 @@
 import { Flex, Button, Heading, Box, TextArea } from "@radix-ui/themes";
 import { useCallback, useState, useRef, useEffect } from "react";
 import { uploadImage, base64ToBlob } from "../utils/image_upload";
-import {
-  useSignAndExecuteTransactionBlock,
-  useCurrentAccount,
-} from "@mysten/dapp-kit";
+import { useSignAndExecuteTransactionBlock } from "@mysten/dapp-kit";
 import { useMarket } from "../web3hooks";
 import FileUpload from "./FileUpload";
 import RightArrow from "../../assets/arrow_right.svg";
-import { CompleteMultipartUploadRequestFilterSensitiveLog } from "@aws-sdk/client-s3";
 
 interface SellBotProps {
   step: number;
@@ -72,7 +68,7 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
     const blob = base64ToBlob(image as string);
     console.log("I get here ready to upload image.");
     const path = await uploadImage(
-      new File([blob], name.replace(" ", ""), { type: "image/png" }),
+      new File([blob], name.replace("/ /g", "_"), { type: "image/png" }),
     );
 
     const tx = list(price.toString().concat("000000000"), path, name);
@@ -85,7 +81,7 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
         requestType: "WaitForLocalExecution",
       },
       {
-        onSuccess: (result) => {
+        onSuccess: (_result) => {
           // go to marketplace
           goNext();
         },
@@ -98,23 +94,42 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
 
   if (step === 1) {
     return (
-      <>
+      <Flex
+        direction={"column"}
+        align={"end"}
+        justify={"center"}
+        style={{ height: "100%", width: "100%", gap: "30px" }}
+      >
         <FileUpload onUpload={onUpload} image={image} />
-        <Button style={{ backgroundColor: "#F50032" }} onClick={goNext}>
+        <Button
+          style={{
+            backgroundColor: "#F50032",
+            width: "150px",
+            height: "50px",
+            padding: "0 20px",
+          }}
+          onClick={goNext}
+        >
           Next <img src={RightArrow} />
         </Button>
-      </>
+      </Flex>
     );
   }
   if (step === 2) {
     return (
       <>
         <Flex direction={"row"}>
-          <Flex direction={"column"}>
+          <Flex direction={"column"} style={{ width: "100%" }}>
             <Heading size="5">Enter NFT Metadata</Heading>
             <Flex direction="column">
-              <Box style={{ padding: "30px" }}>
-                <p>Title</p>
+              <Flex
+                direction={"column"}
+                align={"stretch"}
+                style={{ padding: "10px" }}
+              >
+                <label style={{ fontSize: "14px", fontFamily: "Inter" }}>
+                  Title
+                </label>
                 <input
                   value={name}
                   onChange={(e) => {
@@ -123,9 +138,15 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                   type="text"
                   placeholder="Title"
                 />
-              </Box>
-              <Box style={{ padding: "30px" }}>
-                <p>Tags</p>
+              </Flex>
+              <Flex
+                direction={"column"}
+                align={"stretch"}
+                style={{ padding: "10px" }}
+              >
+                <label style={{ fontSize: "14px", fontFamily: "Inter" }}>
+                  Tags
+                </label>
                 <input
                   type="text"
                   value={tags}
@@ -135,9 +156,15 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                   placeholder="Enter Tags"
                 />
                 {/*suggestions */}
-              </Box>
-              <Box style={{ padding: "30px" }}>
-                <p>Description</p>
+              </Flex>
+              <Flex
+                direction={"column"}
+                align={"stretch"}
+                style={{ padding: "10px" }}
+              >
+                <label style={{ fontSize: "14px", fontFamily: "Inter" }}>
+                  Description
+                </label>
                 <TextArea
                   value={description}
                   onChange={(e) => {
@@ -145,9 +172,15 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                   }}
                   placeholder="Enter a short description of your NFT."
                 />
-              </Box>
-              <Box style={{ padding: "30px" }}>
-                <p>Price per copy</p>
+              </Flex>
+              <Flex
+                direction={"column"}
+                align={"stretch"}
+                style={{ padding: "10px" }}
+              >
+                <label style={{ fontSize: "14px", fontFamily: "Inter" }}>
+                  Price per copy
+                </label>
                 {/* free asset */}
                 <Box>
                   <input
@@ -158,9 +191,17 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                     }}
                     placeholder="1"
                   />
-                  <span>SUI</span>
+                  <span
+                    style={{
+                      left: "-40px",
+                      position: "relative",
+                      color: "#767A81",
+                    }}
+                  >
+                    SUI
+                  </span>
                 </Box>
-              </Box>
+              </Flex>
             </Flex>
           </Flex>
           <Flex direction={"column"}>
@@ -193,33 +234,131 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
   }
   if (step == 3) {
     return (
-      <Flex direction={"column"} align={"center"} style={{width: "100%"}}>
+      <Flex
+        direction={"column"}
+        align={"start"}
+        style={{ width: "80%", backgroundColor: "white" }}
+      >
         <Box>
-          <p> NFT Summary</p>
+          <Heading size={"5"}> NFT Summary</Heading>
         </Box>
-        <Flex direction={"row"} justify={"start"}>
+        <Flex direction={"row"} justify={"between"}>
           <Box>
             <img
               src={image!}
               style={{ width: "560px", height: "575px", padding: "20px" }}
             />
           </Box>
-          <Flex direction={"row"}>
-            <Box style={{margin: "10px"}}>
-              <p>Title</p>
-              <p>Tags</p>
-              <p>Description</p>
-              <p>Price per copy</p>
+          <Flex direction={"column"}>
+            <Box style={{ margin: "10px" }}>
+              <label
+                style={{
+                  fontSize: "14px",
+                  color: "black",
+                  opacity: "0.5",
+                  fontFamily: "Inter",
+                  fontWeight: "600",
+                }}
+              >
+                Title
+              </label>
+              <p
+                style={{
+                  color: "black",
+                  fontWeight: 500,
+                  fontFamily: "Inter",
+                  fontSize: "18px",
+                }}
+              >
+                {name}
+              </p>
             </Box>
-            <Box style={{margin: "10px"}}>
-              <p>{name}</p>
-              <p>{tags}</p>
-              <p>{description}</p>
-              <p>{price} SUI</p>
+            <Box style={{ margin: "10px" }}>
+              <label
+                style={{
+                  fontSize: "14px",
+                  color: "black",
+                  opacity: "0.5",
+                  fontFamily: "Inter",
+                  fontWeight: "600",
+                }}
+              >
+                Tags
+              </label>
+              <p
+                style={{
+                  color: "black",
+                  fontWeight: 500,
+                  fontFamily: "Inter",
+                  fontSize: "18px",
+                }}
+              >
+                {tags.split(" ").map((tag) => (
+                  <Button
+                    style={{
+                      height: "24px",
+                      background: "#F5F5F7",
+                      color: "black",
+                      borderRadius: "24px"
+                    }}
+                  >
+                    {tag.replace("#", "")}
+                  </Button>
+                ))}
+              </p>
+            </Box>
+            <Box style={{ margin: "10px" }}>
+              <label
+                style={{
+                  fontSize: "14px",
+                  color: "black",
+                  opacity: "0.5",
+                  fontFamily: "Inter",
+                  fontWeight: "600",
+                }}
+              >
+                Description
+              </label>
+              <p
+                style={{
+                  color: "black",
+                  fontWeight: 500,
+                  fontFamily: "Inter",
+                  fontSize: "18px",
+                }}
+              >
+                {description}
+              </p>
+            </Box>
+            <Box style={{ margin: "10px" }}>
+              <label
+                style={{
+                  fontSize: "14px",
+                  color: "black",
+                  opacity: "0.5",
+                  fontFamily: "Inter",
+                  fontWeight: "600",
+                }}
+              >
+                Price per copy
+              </label>
+              <p
+                style={{
+                  color: "black",
+                  fontWeight: 500,
+                  fontFamily: "Inter",
+                  fontSize: "18px",
+                }}
+              >
+                {price} SUI
+              </p>
             </Box>
           </Flex>
         </Flex>
-        <Button style={{ backgroundColor: "#F50032", width: "10%"}} onClick={finish}>
+        <Button
+          style={{ backgroundColor: "#F50032", width: "10%" }}
+          onClick={finish}
+        >
           List NFT <img src={RightArrow} />
         </Button>
       </Flex>

@@ -17,10 +17,18 @@ export interface Listing {
   id: string;
 }
 
+export interface Offers {
+  [key: string]: {
+    buyer: string,
+    pk: number[]
+  }
+}
+
 
 const pkg = import.meta.env.VITE_PACKAGE_ID as string;
 const marketplace = import.meta.env.VITE_MARKETPLACE as string;
 const listings = import.meta.env.VITE_LISTINGS_TABLE as string;
+const offers = import.meta.env.VITE_OFFERS_TABLE as string;
 
 export const useMarket = () => {
   const client = new SuiClient({
@@ -118,5 +126,30 @@ export const useMarket = () => {
     return items;
   };
 
-  return { list, buyOffer, acceptOffer, get16NFTs };
+  // Getting all the offers won't work in production environments
+  const getOffers = async () => {
+    const response: any = await client.getDynamicFields({
+      parentId: offers
+    });
+    const keys = response.data.map((item: any) => {
+      return item.name.value;
+    });
+    const items:Offers = {};
+    for (let key of keys) {
+      const item: any = await client.getDynamicFieldObject({
+        parentId: offers,
+        name: {
+          value: key,
+          type: "0x2::object::ID",
+        },
+      });
+      const fields = item.data.content.fields.value.fields;
+      items[key] = {
+        buyer: fields.buyer as string,
+        pk: fields.pk as number[]}
+    }
+    return items;
+  }
+
+  return { list, buyOffer, acceptOffer, get16NFTs, getOffers };
 };

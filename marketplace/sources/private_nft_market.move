@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// The module that defines a private NFT marketplace that creator can list encrypted nft and its hash
-module counter::private_nft_market {
+module marketplace::private_nft_market {
 
     use sui::coin::{Self, Coin};
     use sui::dynamic_object_field as dof;
@@ -31,7 +31,7 @@ module counter::private_nft_market {
         id: UID,
         total_listings: u64,
         listings: Table<ID, Listing>,
-        offers: Table<ID, Offer>
+        offers: Table<ID, Offer>,
     }
 
     /// Used as value for the table that tracks the listings.
@@ -39,14 +39,17 @@ module counter::private_nft_market {
         nft: ID,
         price: u64,
         seller: address,
-        image: String
+        image: String,
+        name: String
     }
     
 
     // the NFT type we're using. We can also make this generic but keeping this like this for simplicity.
     struct EncryptedNFT has key, store {
         id: UID,
+        name: String,
         image_url: String, // s3 or ipfs image url, todo: use metadata with display
+        ciphertext_url: String,
         price: u64,
         encrypted_master_key: Option<vector<u8>> // Design Decision: Instead of Option we can use 0x0 as "null".
     }
@@ -109,17 +112,22 @@ module counter::private_nft_market {
     }
 
     // Called by the seller or creator.
-    public entry fun list(
+    public fun list(
         marketplace: &mut Marketplace,
         price: u64,
         image_url: String,
+        ciphertext_url: String,
+        name: String,
         ctx: &mut TxContext)
     {
+    
         let id = object::new(ctx);
         let item_id = object::uid_to_inner(&id);
         let nft = EncryptedNFT {
             id,
-            image_url: image_url,
+            name,
+            image_url,
+            ciphertext_url,
             price: price,
             encrypted_master_key: option::none<vector<u8>>()
         };
@@ -129,7 +137,8 @@ module counter::private_nft_market {
                 nft: item_id,
                 price,
                 seller,
-                image: image_url
+                image: image_url,
+                name
             }
         );
         dof::add<ID, EncryptedNFT>(&mut marketplace.id, item_id, nft);
@@ -153,7 +162,7 @@ module counter::private_nft_market {
     ) {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
         // For now multiple offers are not possible.
-        assert!(table::contains<ID, Offer>(&marketplace.offers, nft), EAnOfferAlreadyExists);
+        assert!(!table::contains<ID, Offer>(&marketplace.offers, nft), EAnOfferAlreadyExists);
         let listing = table::borrow<ID, Listing>(&marketplace.listings, nft);
         assert!(coin::value(&payment) == listing.price, EIncorrectPrice);
         // Design decision:
@@ -182,7 +191,7 @@ module counter::private_nft_market {
     ) {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
         assert!(table::contains<ID, Offer>(&marketplace.offers, nft), ENoOfferForItem);
-        let Listing {nft, price: _, seller, image: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        let Listing {nft, price: _, seller, image: _, name: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
         assert!(seller == tx_context::sender(ctx), ENotYourListing);
         
         
@@ -210,7 +219,7 @@ module counter::private_nft_market {
 
     public fun cancel_listing(nft: ID, marketplace: &mut Marketplace, ctx: &mut TxContext): EncryptedNFT {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
-        let Listing {nft, price: _, seller, image: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        let Listing {nft, price: _, seller, image: _, name: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
         assert!(seller == tx_context::sender(ctx), ENotYourListing);
         marketplace.total_listings = marketplace.total_listings - 1;
         dof::remove<ID, EncryptedNFT>(&mut marketplace.id, nft)
@@ -222,4 +231,5 @@ module counter::private_nft_market {
         assert! (buyer == tx_context::sender(ctx), ENotYourOffer);
         payment
     }
+
 }

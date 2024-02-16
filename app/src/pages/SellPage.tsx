@@ -22,7 +22,7 @@ const SellPage = ({ onFinish }: SellPageProps) => {
         direction={"row"}
         justify="between"
         align={"center"}
-        style={{ backgroundColor: "white", height: "35%", width: "100%", padding: "20px 32px" }}
+        style={{ backgroundColor: "white", height: "7%", width: "100%", padding: "20px 32px" }}
       >
         <SellTop step={step} setStep={setStep}></SellTop>
       </Flex>
