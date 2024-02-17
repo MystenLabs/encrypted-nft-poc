@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Flex, Box, Button } from "@radix-ui/themes";
 import { useMarket, Listing, Offers } from "../web3hooks";
 import { useCurrentAccount } from "@mysten/dapp-kit";
-import AcceptOfferModal from "../components/AcceptOfferModal";
+import NFTPage from "./NFTPage";
 import NFTCard from "../components/NFTCard";
 import "../styles/marketplace.css";
 
@@ -13,21 +13,15 @@ const Marketplace = () => {
   const [filteredData, setFilteredData] = useState<Listing[]>([]);
   const [offers, setOffers] = useState<Offers>({});
   const [isFilterPushed, setIsFilterPushed] = useState(false);
-  const [showAcceptModal, setShowAcceptModal] = useState(false);
-  const [clickedId, setClickedId] = useState<string>("");
-  const [clickedPk, setClickedPk] = useState<number[]>([]);
+  const [nftIndex, setNftIndex] = useState(-1);
 
   const account = useCurrentAccount();
 
-  const openModal = (id: string, pk: number[]) => {
-    setClickedId(id);
-    setClickedPk(pk);
-    console.log("open modal");
-    setShowAcceptModal(true);
+  const openNFTPage = (index: number) => {
+    setNftIndex(index);
   };
-
-  const closeModal = () => {
-    setShowAcceptModal(false);
+  const closeNFTPage = () => {
+    setNftIndex(-1);
   };
 
   const filterMine = () => {
@@ -36,7 +30,7 @@ const Marketplace = () => {
     } else {
       setFilteredData(
         data.filter((item) => {
-         return item.seller === account?.address;
+          return item.seller === account?.address;
         }),
       );
     }
@@ -59,25 +53,25 @@ const Marketplace = () => {
   }, []);
 
   if (isLoading) return <div>Loading...</div>;
-  else
+  else if (nftIndex === -1) {
     return (
       <Box style={{ height: "100%" }}>
         <Button
-            style={{
-              backgroundColor: isFilterPushed ? "black" : "white",
-              color: isFilterPushed ? "white" : "black",
-              borderRadius: "24px",
-            }}
-            onClick={filterMine}
-          >
-            Mine
-          </Button>
+          style={{
+            backgroundColor: isFilterPushed ? "black" : "white",
+            color: isFilterPushed ? "white" : "black",
+            borderRadius: "24px",
+          }}
+          onClick={filterMine}
+        >
+          Mine
+        </Button>
         <Flex
           gap="2"
           wrap="wrap"
           grow="1"
           shrink="0"
-          style={{ flexBasis: "21%" }}
+          style={{ flexBasis: "20%" }}
         >
           {filteredData.map((listing, index) => {
             return (
@@ -89,14 +83,22 @@ const Marketplace = () => {
                 id={listing.id}
                 seller={listing.seller}
                 pk={offers[listing.id]?.pk || []}
-                openModal={openModal}
-                closeModal={closeModal}
+                index={index}
+                openNFTPage={openNFTPage}
               />
             );
           })}
         </Flex>
       </Box>
     );
+  } else {
+    const nft = filteredData[nftIndex];
+    return (
+    <>
+      <NFTPage id={nft.id} name={nft.name} image={nft.image} price={nft.price} seller={nft.seller} pk={offers[nft.id]?.pk || []} isOffer={offers[nft.id] !== undefined} />
+    </>
+    );
+  }
 };
 
 export default Marketplace;
