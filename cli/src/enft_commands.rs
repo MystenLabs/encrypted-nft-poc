@@ -47,8 +47,8 @@ enum Command {
     /// anyone who can recover the master key and decrypt from ciphertext.
     Decrypt(DecryptArgs),
 
-    /// Decrypt the original NFT from ciphertext. This can be done by
-    /// anyone who can recover the master key and decrypt from ciphertext.
+    /// Given a proof, the previous encryption and its pubkey (seller's pk),
+    /// the current encryption and its pubkey (buyer's pk), verify the proof.
     Verify(VerifyArgs),
 }
 
@@ -100,9 +100,25 @@ struct DecryptArgs {
 
 #[derive(Parser, Clone)]
 struct VerifyArgs {
-    /// A hex encoding of the master private key to encrypt with.
+    /// A serialized consistency proof.
     #[clap(short, long)]
     serialized_proof: String,
+
+    /// Previous encrypted master key under seller's pubkey.
+    #[clap(short, long)]
+    prev_enc_msk: String,
+
+    /// Current encrypted master key under buyer's pubkey.
+    #[clap(short, long)]
+    curr_enc_msk: String,
+
+    /// A hex encoding of the seller's pk.
+    #[clap(short, long)]
+    seller_enc_pk: String,
+
+    /// A hex encoding of the buyers's pk.
+    #[clap(short, long)]
+    buyer_enc_pk: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -293,9 +309,52 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             Ok(())
         }
         Command::Verify(args) => {
-            let _proof: ConsistencyProof =
+            let proof: ConsistencyProof =
                 bcs::from_bytes(&Hex::decode(&args.serialized_proof).unwrap()).unwrap();
-            // todo
+            let seller_enc_pk = G1Element::from_byte_array(
+                &Hex::decode(&args.seller_enc_pk)
+                    .unwrap()
+                    .try_into()
+                    .unwrap(),
+            )
+            .unwrap();
+            let prev_enc_msk: KeyEncryption<G1Element> =
+                bcs::from_bytes(&Hex::decode(&args.prev_enc_msk).unwrap()).unwrap();
+            let curr_enc_msk: KeyEncryption<G1Element> =
+                bcs::from_bytes(&Hex::decode(&args.curr_enc_msk).unwrap()).unwrap();
+            let buyer_enc_pk = G1Element::from_byte_array(
+                &Hex::decode(&args.buyer_enc_pk).unwrap().try_into().unwrap(),
+            )
+            .unwrap();
+
+            let mut fiat_shamir_msg = Sha3_512::new();
+            fiat_shamir_msg.update(seller_enc_pk.to_byte_array());
+            fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
+            fiat_shamir_msg.update(buyer_enc_pk.to_byte_array());
+            fiat_shamir_msg.update(&bcs::to_bytes(&curr_enc_msk).unwrap());
+            fiat_shamir_msg.update(proof.u1.to_byte_array());
+            fiat_shamir_msg.update(proof.u2.to_byte_array());
+            fiat_shamir_msg.update(proof.v.to_byte_array());
+
+            let digest = fiat_shamir_msg.finalize().digest;
+            let c =
+                <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
+            let gen = <G1Element as GroupElement>::generator();
+
+            if gen * proof.s1 != seller_enc_pk * c + proof.u1 {
+                panic!("Invalid Schnorr proof for s1");
+            }
+
+            if gen * proof.s2 != curr_enc_msk.g_to_r * c + proof.u2 {
+                panic!("Invalid Schnorr proof for s1");
+            }
+
+            if prev_enc_msk.g_to_r * proof.s1 - buyer_enc_pk * proof.s2
+                != (prev_enc_msk.m_pk_to_r - curr_enc_msk.m_pk_to_r) * c + proof.v
+            {
+                panic!("Invalid Schnorr proof for v");
+            }
+
             Ok(())
         }
     }
