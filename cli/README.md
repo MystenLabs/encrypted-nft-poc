@@ -37,6 +37,7 @@ Obfuscated image to file.
 # now creator (seller) initiates transfers. Outputs the following: 
 # 1. a new encrypted master key under the buyer pk. 
 # 2. a consistency proof to ensure the encryption is indeed for the same master key. 
+# Note that the encrypted msk and the proof changes since it takes into account a randomness. 
 
 target/debug/enft-cli transfer --master-sk a1466cfa0e01b2b2a40663d18ce5651459444580ac4b3cd36a403ba0a46cb76eda010994c94858edc4811570f8893af4 --prev-enc-msk 807fe2952817e98573e6e2f65c51dec919aedbc423186419c390053efb0f5aa79464d238cf33748cf6951736b9e13439a4224b87525ed2c0d9dbcbe79fd8c3c4f70976cb1c05b81e926436b3cf7eec14cb4ca33c6a084c27bd4f192ab1cad64b --buyer-pk 86de3db3f383379715bdf920768e5a2b9ad102c01de08e9b6009d8848aae8939448603ca0db10525aca5b4c6a270666d --seller-enc-sk 2fd7a46d6c4955630c91f6960b4cfc02f07254d0f41feccf03f67c3e2f07576f
 
