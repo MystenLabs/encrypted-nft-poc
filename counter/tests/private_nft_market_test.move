@@ -3,21 +3,19 @@
 
 #[test_only]
 module counter::private_colletible_tests {
-    use counter::private_nft_market;
+    use counter::private_nft_market::{Self, EncryptedNFT, equility_verify};
     use std::string;
-    use sui::balance;
+    use sui::test_scenario as ts;
+    use sui::object;
 
     #[test]
-    /// Scenario: perform a transfer operation, and confirm that the request
-    /// is well-formed.
-    fun test_transfer_action() {
-        let ctx = &mut test::ctx(@0x0);
-        let marketplace = private_nft_market::create(ctx);
-        let nft = EncryptedNFT {
-            image_url: string::utf8(vector[]),
-            hash: string::utf8(vector[]), 
-            price: balance::value(100)
-        };
-        let token = private_nft_market::add_listings(marketplace, nft, ctx);
+    /// Test a proof produced from CLI in move. 
+    fun test_verify_proof_serialized_from_cli() {
+        let sender = @0x0;
+        let scenario = ts::begin(sender);
+        let uid1 = ts::new_object(&mut scenario);
+        // let pk1 = b"";
+        // assert!(equility_verify(&pk1, &pk2, &enc1, enc2, &proof), 0);
+
     }
 }

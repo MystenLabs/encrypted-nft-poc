@@ -8,7 +8,7 @@ use fastcrypto::aes::Cipher;
 use fastcrypto::aes::InitializationVector;
 use fastcrypto::encoding::{Encoding, Hex};
 use fastcrypto::groups::bls12381::{G1Element, Scalar};
-use fastcrypto::hash::Sha3_512;
+use fastcrypto::hash::Blake2b256;
 use fastcrypto::serde_helpers::ToFromByteArray;
 use fastcrypto::traits::Generate;
 use fastcrypto::{
@@ -122,19 +122,19 @@ struct VerifyArgs {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct KeyEncryption<G1Element> {
-    pub g_to_r: G1Element,
-    pub m_pk_to_r: G1Element,
+pub struct ElGamalEncryption {
+    pub ephemeral: G1Element,
+    pub ciphertext: G1Element,
 }
 
 /// A proof that two encrypted master keys are consistent wrt the same master key.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct ConsistencyProof {
-    pub s1: Scalar,
-    pub s2: Scalar,
-    pub u1: G1Element,
-    pub u2: G1Element,
-    pub v: G1Element,
+pub struct EqualityProof {
+    pub s1: Scalar,    //z1
+    pub s2: Scalar,    // z2
+    pub u1: G1Element, // a1
+    pub u2: G1Element, // a2
+    pub v: G1Element,  // a3
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -189,9 +189,9 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             // 1. Encrypt the master key under the given pubkey.
             let gen = <G1Element as GroupElement>::generator();
             let encryption_randomness = <G1Element as GroupElement>::ScalarType::rand(&mut rng);
-            let encrypted_msk = KeyEncryption {
-                g_to_r: gen * encryption_randomness,
-                m_pk_to_r: enc_pk * encryption_randomness + msk,
+            let encrypted_msk = ElGamalEncryption {
+                ephemeral: gen * encryption_randomness,
+                ciphertext: enc_pk * encryption_randomness + msk,
             };
             let encrypted_msk = Hex::encode(bcs::to_bytes(&encrypted_msk).unwrap());
             println!("Encrypted master sk:");
@@ -220,7 +220,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             Ok(())
         }
         Command::Transfer(args) => {
-            let prev_enc_msk: KeyEncryption<G1Element> =
+            let prev_enc_msk: ElGamalEncryption =
                 bcs::from_bytes(&Hex::decode(&args.prev_enc_msk).unwrap()).unwrap();
             let buyer_pk = G1Element::from_byte_array(
                 &Hex::decode(&args.buyer_pk).unwrap().try_into().unwrap(),
@@ -242,23 +242,23 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             let gen = <G1Element as GroupElement>::generator();
             let mut rng = rand::thread_rng();
             let encryption_randomness = <G1Element as GroupElement>::ScalarType::rand(&mut rng);
-            let new_enc_msk = KeyEncryption {
-                g_to_r: gen * encryption_randomness,
-                m_pk_to_r: buyer_pk * encryption_randomness + msk,
+            let new_enc_msk = ElGamalEncryption {
+                ephemeral: gen * encryption_randomness,
+                ciphertext: buyer_pk * encryption_randomness + msk,
             };
             let new_enc_sk = Hex::encode(bcs::to_bytes(&new_enc_msk).unwrap());
             println!("Serialized newly encrypted master key (under buyer pk):");
             println!("{:?}", new_enc_sk);
 
-            // then generate a proof that new_enc_msk and prev_enc_msk are consistent wrt msk.
+            // then generate a proof that new_enc_msk and prev_enc_msk are equivalent wrt msk.
             let alpha: Scalar = Scalar::rand(&mut rng);
             let beta: Scalar = Scalar::rand(&mut rng);
 
             let u1 = gen * alpha;
             let u2 = gen * beta;
-            let v = prev_enc_msk.g_to_r * alpha - buyer_pk * beta;
+            let v = prev_enc_msk.ephemeral * alpha - buyer_pk * beta;
 
-            let mut fiat_shamir_msg = Sha3_512::new();
+            let mut fiat_shamir_msg = Blake2b256::new();
             fiat_shamir_msg.update(seller_enc_pk.to_byte_array());
             fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
             fiat_shamir_msg.update(buyer_pk.to_byte_array());
@@ -271,7 +271,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             let c =
                 <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
 
-            let proof = ConsistencyProof {
+            let proof = EqualityProof {
                 s1: seller_enc_sk * c + alpha,
                 s2: encryption_randomness * c + beta,
                 u1,
@@ -280,13 +280,13 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             };
 
             let proof = Hex::encode(bcs::to_bytes(&proof).unwrap());
-            println!("Serialized consistency proof:");
+            println!("Serialized equality proof:");
             println!("{:?}", proof);
 
             Ok(())
         }
         Command::Decrypt(args) => {
-            let enc_msk: KeyEncryption<G1Element> =
+            let enc_msk: ElGamalEncryption =
                 bcs::from_bytes(&Hex::decode(&args.enc_master_sk).unwrap()).unwrap();
             let ciphertext: FullCipherText = bcs::from_bytes(
                 &Hex::decode(&std::fs::read_to_string(&args.ciphertext_path).unwrap()).unwrap(),
@@ -297,7 +297,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                 Scalar::from_byte_array(&Hex::decode(&args.buyer_sk).unwrap().try_into().unwrap())
                     .unwrap();
 
-            let msk = enc_msk.m_pk_to_r - enc_msk.g_to_r * buyer_sk;
+            let msk = enc_msk.ciphertext - enc_msk.ephemeral * buyer_sk;
             println!(
                 "Recovered master sk: {:?}",
                 Hex::encode(msk.to_byte_array())
@@ -309,7 +309,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             Ok(())
         }
         Command::Verify(args) => {
-            let proof: ConsistencyProof =
+            let proof: EqualityProof =
                 bcs::from_bytes(&Hex::decode(&args.serialized_proof).unwrap()).unwrap();
             let seller_enc_pk = G1Element::from_byte_array(
                 &Hex::decode(&args.seller_enc_pk)
@@ -318,16 +318,16 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                     .unwrap(),
             )
             .unwrap();
-            let prev_enc_msk: KeyEncryption<G1Element> =
+            let prev_enc_msk: ElGamalEncryption =
                 bcs::from_bytes(&Hex::decode(&args.prev_enc_msk).unwrap()).unwrap();
-            let curr_enc_msk: KeyEncryption<G1Element> =
+            let curr_enc_msk: ElGamalEncryption =
                 bcs::from_bytes(&Hex::decode(&args.curr_enc_msk).unwrap()).unwrap();
             let buyer_enc_pk = G1Element::from_byte_array(
                 &Hex::decode(&args.buyer_enc_pk).unwrap().try_into().unwrap(),
             )
             .unwrap();
 
-            let mut fiat_shamir_msg = Sha3_512::new();
+            let mut fiat_shamir_msg = Blake2b256::new();
             fiat_shamir_msg.update(seller_enc_pk.to_byte_array());
             fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
             fiat_shamir_msg.update(buyer_enc_pk.to_byte_array());
@@ -345,12 +345,12 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                 panic!("Invalid Schnorr proof for s1");
             }
 
-            if gen * proof.s2 != curr_enc_msk.g_to_r * c + proof.u2 {
+            if gen * proof.s2 != curr_enc_msk.ephemeral * c + proof.u2 {
                 panic!("Invalid Schnorr proof for s1");
             }
 
-            if prev_enc_msk.g_to_r * proof.s1 - buyer_enc_pk * proof.s2
-                != (prev_enc_msk.m_pk_to_r - curr_enc_msk.m_pk_to_r) * c + proof.v
+            if prev_enc_msk.ephemeral * proof.s1 - buyer_enc_pk * proof.s2
+                != (prev_enc_msk.ciphertext - curr_enc_msk.ciphertext) * c + proof.v
             {
                 panic!("Invalid Schnorr proof for v");
             }
