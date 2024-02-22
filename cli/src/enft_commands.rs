@@ -101,7 +101,7 @@ struct DecryptArgs {
 #[derive(Parser, Clone)]
 struct VerifyArgs {
     /// A serialized consistency proof.
-    #[clap(short, long)]
+    #[clap(long)]
     serialized_proof: String,
 
     /// Previous encrypted master key under seller's pubkey.
@@ -237,7 +237,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                     .unwrap(),
             )
             .unwrap();
-
+            let seller_enc_pk = G1Element::generator() * seller_enc_sk;
             // first generate the newly encrypted master key under the buyer pk.
             let gen = <G1Element as GroupElement>::generator();
             let mut rng = rand::thread_rng();
@@ -259,7 +259,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             let v = prev_enc_msk.g_to_r * alpha - buyer_pk * beta;
 
             let mut fiat_shamir_msg = Sha3_512::new();
-            fiat_shamir_msg.update(seller_enc_sk.to_byte_array());
+            fiat_shamir_msg.update(seller_enc_pk.to_byte_array());
             fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
             fiat_shamir_msg.update(buyer_pk.to_byte_array());
             fiat_shamir_msg.update(&bcs::to_bytes(&new_enc_msk).unwrap());
@@ -354,7 +354,7 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             {
                 panic!("Invalid Schnorr proof for v");
             }
-
+            println!("Proof verified.");
             Ok(())
         }
     }
