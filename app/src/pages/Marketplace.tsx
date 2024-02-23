@@ -5,6 +5,7 @@ import { useCurrentAccount } from "@mysten/dapp-kit";
 import NFTPage from "./NFTPage";
 import NFTCard from "../components/NFTCard";
 import "../styles/marketplace.css";
+import { is } from "@mysten/sui.js/utils";
 
 const Marketplace = () => {
   const { get16NFTs, getOffers } = useMarket();
@@ -39,7 +40,7 @@ const Marketplace = () => {
 
   useEffect(() => {
     const getItems = async () => {
-      setIsLoading(true);
+      if (!isLoading) setIsLoading(true);
       const items = await get16NFTs();
       const offers = await getOffers();
 
@@ -49,8 +50,8 @@ const Marketplace = () => {
 
       setIsLoading(false);
     };
-    getItems();
-  }, []);
+    if (nftIndex === -1) getItems();
+  }, [nftIndex]);
 
   if (isLoading) return <div>Loading...</div>;
   else if (nftIndex === -1) {
@@ -94,9 +95,19 @@ const Marketplace = () => {
   } else {
     const nft = filteredData[nftIndex];
     return (
-    <>
-      <NFTPage id={nft.id} name={nft.name} image={nft.image} price={nft.price} seller={nft.seller} pk={offers[nft.id]?.pk || []} isOffer={offers[nft.id] !== undefined} />
-    </>
+      <>
+        <NFTPage
+          id={nft.id}
+          name={nft.name}
+          image={nft.image}
+          price={nft.price}
+          seller={nft.seller}
+          buyer={offers[nft.id]?.buyer || ""}
+          isOffer={offers[nft.id] !== undefined}
+          secretKey={nft.secretKey}
+          close={closeNFTPage}
+        />
+      </>
     );
   }
 };

@@ -1,7 +1,5 @@
-import { Flex, Box, Tooltip, HoverCard, Text, Link} from "@radix-ui/themes";
-import { useMarket } from "../web3hooks";
+import { Flex, Box, Link} from "@radix-ui/themes";
 import {
-  useSignAndExecuteTransactionBlock,
   useCurrentAccount,
 } from "@mysten/dapp-kit";
 import "../styles/tooltip.css";
@@ -71,17 +69,7 @@ const NFTCard = ({
           margin: "5px",
         }}
       >
-        <HoverCard.Root>
-          <HoverCard.Trigger>
-            <img src={image} alt={name} />
-          </HoverCard.Trigger>
-          <HoverCard.Content>
-            <Flex>
-              <Link href={`https://suiexplorer.com/object/${id}?network=${import.meta.env.VITE_ACTIVE_NETWORK}`}>{id}</Link>
-            </Flex>
-          </HoverCard.Content>
-        </HoverCard.Root>
-        <Box>{name}</Box>
+        <img src={image} alt={name} />
         <Flex direction={"row"}>
           Price:{" "}
           <img

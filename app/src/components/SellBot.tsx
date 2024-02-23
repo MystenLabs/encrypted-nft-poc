@@ -1,7 +1,9 @@
 import { Flex, Button, Heading, Box, TextArea } from "@radix-ui/themes";
 import { useCallback, useState, useRef, useEffect } from "react";
-import { uploadImage, base64ToBlob } from "../utils/image_upload";
-import { useSignAndExecuteTransactionBlock } from "@mysten/dapp-kit";
+import {
+  useSignAndExecuteTransactionBlock,
+  useCurrentAccount,
+} from "@mysten/dapp-kit";
 import { useMarket } from "../web3hooks";
 import FileUpload from "./FileUpload";
 import RightArrow from "../../assets/arrow_right.svg";
@@ -17,8 +19,13 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
   const [tags, setTags] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [price, setPrice] = useState<number>(1);
+  const [cipherURL, setCipherURL] = useState<string>("");
+  const [secretKey, setSecretKey] = useState<string>("");
   const { list } = useMarket();
   const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
+
+  const backend = import.meta.env.VITE_BACKEND as string;
+  const account = useCurrentAccount();
 
   const canvasRef = useRef(null);
 
@@ -32,21 +39,50 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
     }
   }, []);
 
-  const onBlurClick = () => {
+  const onObfuscateClick = async () => {
     // setIsBlurred(!isBlurred);
-    const canvas: any = canvasRef.current;
-    const context = canvas.getContext("2d");
-    const img = new Image();
+    // const canvas: any = canvasRef.current;
+    // const context = canvas.getContext("2d");
+    const response = await fetch(backend + "obfuscate", {
+      method: "POST",
+      headers: { "Content-type": "application/json" },
+      body: JSON.stringify({
+        image,
+        seller: account?.address,
+        imageName: name.replace(/ /g, "_"),
+      }),
+    });
+    if (!response.ok) {
+      console.warn(
+        "Failed to obfuscate image with error:",
+        response.statusText,
+      );
 
-    img.onload = () => {
-      context.filter = "blur(5px)"; // Apply blur filter to the canvas context
-      context.drawImage(img, 0, 0, canvas.width, canvas.height); // Draw the blurred image onto the canvas
-      setIsBlurred(true); // Update state to indicate that the image is blurred
-      setImage(canvas.toDataURL()); // Update imageSrc with the blurred image data URL
-    };
-
-    img.src = image as string;
+    }
+    const data = await response.json();
+    setIsBlurred(true);
+    setSecretKey(data.encryptedSecretKey);
+    setCipherURL(data.cipherUrl);
+    setImage(data.obfuscatedImage);
+    // img.src = data.obfuscatedImage;
   };
+
+  const onDeobfuscateClick = async () => {
+    console.log(cipherURL)
+    const response = await fetch(backend + "deobfuscate", {
+      method: "POST",
+      headers: { "Content-type": "application/json" },
+      body: JSON.stringify({
+        obfuscatedImageUrl: cipherURL.replace("_ciphertext", ""),
+        cipherUrl: cipherURL,
+        encSecretKey: secretKey,
+        seller: account?.address,
+      }),
+    });
+    const data = await response.json();
+    setIsBlurred(false);
+    setImage(data.deobfuscatedImage);
+  }
 
   useEffect(() => {
     if (canvasRef.current === null) {
@@ -58,20 +94,20 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
     // Load and render the uploaded image on the canvas
     const img = new Image();
     img.onload = () => {
+      context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(img, 0, 0, canvas.width, canvas.height);
     };
     img.src = image as string;
-  }, [step]);
-
+  }, [step, image]);
+  
   const finish = async () => {
-    // upload image
-    const blob = base64ToBlob(image as string);
-    console.log("I get here ready to upload image.");
-    const path = await uploadImage(
-      new File([blob], name.replace("/ /g", "_"), { type: "image/png" }),
+    const tx = list(
+      price.toString().concat("000000000"),
+      cipherURL.replace("_ciphertext", ""),
+      name,
+      cipherURL,
+      Array.from(Buffer.from(secretKey, 'hex')),
     );
-
-    const tx = list(price.toString().concat("000000000"), path, name);
     signAndExecute(
       {
         transactionBlock: tx,
@@ -96,17 +132,19 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
     return (
       <Flex
         direction={"column"}
-        align={"end"}
+        align={"center"}
         justify={"center"}
-        style={{ height: "100%", width: "100%", gap: "30px" }}
+        gap="6"
+        style={{
+          maxWidth: "1000px",
+        }}
       >
         <FileUpload onUpload={onUpload} image={image} />
         <Button
           style={{
+            marginLeft: "auto",
             backgroundColor: "#F50032",
-            width: "150px",
-            height: "50px",
-            padding: "0 20px",
+            padding: "25px 60px",
           }}
           onClick={goNext}
         >
@@ -117,7 +155,7 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
   }
   if (step === 2) {
     return (
-      <>
+      <Flex direction={"column"} align={"end"}>
         <Flex direction={"row"}>
           <Flex direction={"column"} style={{ width: "100%" }}>
             <Heading size="5">Enter NFT Metadata</Heading>
@@ -207,7 +245,16 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
           <Flex direction={"column"}>
             <p>Protect your NFT</p>
             <Box>
-              <Button onClick={onBlurClick}>Blur</Button>
+              <Button
+                disabled={name === "" ? true : false}
+                onClick={onObfuscateClick}
+              >
+                Obfuscate
+              </Button>
+              <Button
+                disabled={isBlurred ? false: true}
+                onClick={onDeobfuscateClick}
+                >Deobfuscate</Button>
             </Box>
             <Box
               style={{
@@ -217,32 +264,30 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                 cursor: "crosshair",
               }}
             >
-              <canvas
-                ref={canvasRef}
-                width={500}
-                height={500}
-                style={{ filter: isBlurred ? "blur(8px)" : "none" }}
-              ></canvas>
+              <canvas ref={canvasRef} width={500} height={500}></canvas>
             </Box>
           </Flex>
         </Flex>
-        <Button style={{ backgroundColor: "#F50032" }} onClick={goNext}>
+        <Button
+          disabled={isBlurred ? false : true}
+          style={{ backgroundColor: "#F50032" }}
+          onClick={goNext}
+        >
           Next <img src={RightArrow} />
         </Button>
-      </>
+      </Flex>
     );
   }
   if (step == 3) {
     return (
       <Flex
         direction={"column"}
-        align={"start"}
         style={{ width: "80%", backgroundColor: "white" }}
       >
         <Box>
           <Heading size={"5"}> NFT Summary</Heading>
         </Box>
-        <Flex direction={"row"} justify={"between"}>
+        <Flex direction={"row"} justify={"between"} gap="6">
           <Box>
             <img
               src={image!}
@@ -299,7 +344,7 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                       height: "24px",
                       background: "#F5F5F7",
                       color: "black",
-                      borderRadius: "24px"
+                      borderRadius: "24px",
                     }}
                   >
                     {tag.replace("#", "")}
@@ -356,7 +401,7 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
           </Flex>
         </Flex>
         <Button
-          style={{ backgroundColor: "#F50032", width: "10%" }}
+          style={{ backgroundColor: "#F50032", width: "20%", marginLeft: "auto"}}
           onClick={finish}
         >
           List NFT <img src={RightArrow} />

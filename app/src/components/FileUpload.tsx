@@ -20,12 +20,12 @@ const FileUpload = ({ onUpload, image }: FileUploadProps) => {
 
   return (
     <Flex
-      justify={"between"}
+      justify={"center"}
       direction={"column"}
+      align={"center"}
       style={{
         height: "auto",
-        width: "65%",
-        margin: "32px",
+        width:"100%",
         alignItems: "start",
         backgroundColor: "#FFFFFF",
         padding: "20px",

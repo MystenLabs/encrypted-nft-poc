@@ -15,15 +15,15 @@ export interface Listing {
   image: string;
   name: string;
   id: string;
+  secretKey: string;
 }
 
 export interface Offers {
   [key: string]: {
-    buyer: string,
-    pk: number[]
-  }
+    buyer: string;
+    pk: number[];
+  };
 }
-
 
 const pkg = import.meta.env.VITE_PACKAGE_ID as string;
 const marketplace = import.meta.env.VITE_MARKETPLACE as string;
@@ -36,7 +36,13 @@ export const useMarket = () => {
   });
 
   // TODO:  Validate URL
-  const list = (price: string, imgURL: string, name: string): TransactionBlock => {
+  const list = (
+    price: string,
+    imgURL: string,
+    name: string,
+    ciphertextURL: string,
+    secretKey: ArrayLike<number>,
+  ): TransactionBlock => {
     const tx = new TransactionBlock();
     tx.moveCall({
       target: `${pkg}::private_nft_market::list`,
@@ -44,7 +50,8 @@ export const useMarket = () => {
         tx.object(marketplace),
         tx.pure.u64(price),
         tx.pure.string(imgURL),
-        tx.pure.string("Ciphertext"),
+        tx.pure.string(ciphertextURL),
+        tx.pure(secretKey),
         tx.pure.string(name),
       ],
     });
@@ -95,11 +102,13 @@ export const useMarket = () => {
     return tx;
   };
 
-  const get16NFTs = async (cursor: string| null = null): Promise<Listing[]> => {
+  const get16NFTs = async (
+    cursor: string | null = null,
+  ): Promise<Listing[]> => {
     const response: any = await client.getDynamicFields({
       parentId: listings,
       limit: 16,
-      cursor
+      cursor,
     });
     const keys = response.data.map((item: any) => {
       return item.name.value;
@@ -114,12 +123,15 @@ export const useMarket = () => {
         },
       });
       const fields = item.data.content.fields.value.fields;
+      console.log(fields);
+      const hexKey = Buffer.from(fields.secret_key);
       items.push({
         seller: fields.seller as string,
         nft: fields.nft as string,
         image: fields.image as string,
         price: fields.price as string,
         name: fields.name as string,
+        secretKey: hexKey.toString('hex'),
         id: key,
       });
     }
@@ -129,12 +141,12 @@ export const useMarket = () => {
   // Getting all the offers won't work in production environments
   const getOffers = async () => {
     const response: any = await client.getDynamicFields({
-      parentId: offers
+      parentId: offers,
     });
     const keys = response.data.map((item: any) => {
       return item.name.value;
     });
-    const items:Offers = {};
+    const items: Offers = {};
     for (let key of keys) {
       const item: any = await client.getDynamicFieldObject({
         parentId: offers,
@@ -146,10 +158,11 @@ export const useMarket = () => {
       const fields = item.data.content.fields.value.fields;
       items[key] = {
         buyer: fields.buyer as string,
-        pk: fields.pk as number[]}
+        pk: fields.pk as number[],
+      };
     }
     return items;
-  }
+  };
 
   return { list, buyOffer, acceptOffer, get16NFTs, getOffers };
 };

@@ -13,8 +13,6 @@ module marketplace::private_nft_market {
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
     
-
-    use std::option::{Self, Option};
     use std::string::String;
 
 
@@ -40,7 +38,8 @@ module marketplace::private_nft_market {
         price: u64,
         seller: address,
         image: String,
-        name: String
+        name: String,
+        secret_key: vector<u8>
     }
     
 
@@ -51,7 +50,7 @@ module marketplace::private_nft_market {
         image_url: String, // s3 or ipfs image url, todo: use metadata with display
         ciphertext_url: String,
         price: u64,
-        encrypted_master_key: Option<vector<u8>> // Design Decision: Instead of Option we can use 0x0 as "null".
+        encrypted_master_key: vector<u8>,
     }
 
     /// Represents the intent of a buyer to purchase.
@@ -117,6 +116,7 @@ module marketplace::private_nft_market {
         price: u64,
         image_url: String,
         ciphertext_url: String,
+        encrypted_master_key: vector<u8>,
         name: String,
         ctx: &mut TxContext)
     {
@@ -129,7 +129,7 @@ module marketplace::private_nft_market {
             image_url,
             ciphertext_url,
             price: price,
-            encrypted_master_key: option::none<vector<u8>>()
+            encrypted_master_key,
         };
         let seller: address = tx_context::sender(ctx);
         table::add<ID, Listing>(&mut marketplace.listings, item_id,
@@ -138,7 +138,8 @@ module marketplace::private_nft_market {
                 price,
                 seller,
                 image: image_url,
-                name
+                name,
+                secret_key: encrypted_master_key
             }
         );
         dof::add<ID, EncryptedNFT>(&mut marketplace.id, item_id, nft);
@@ -191,7 +192,13 @@ module marketplace::private_nft_market {
     ) {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
         assert!(table::contains<ID, Offer>(&marketplace.offers, nft), ENoOfferForItem);
-        let Listing {nft, price: _, seller, image: _, name: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        let Listing {
+            nft,
+            price: _,
+            seller,
+            image: _,
+            name: _,
+            secret_key: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
         assert!(seller == tx_context::sender(ctx), ENotYourListing);
         
         
@@ -207,7 +214,7 @@ module marketplace::private_nft_market {
         // }
 
         let enft: EncryptedNFT = dof::remove(&mut marketplace.id, nft);
-        enft.encrypted_master_key = option::some<vector<u8>>(encrypted_master_key);
+        enft.encrypted_master_key = encrypted_master_key;
         // this cannot underflow since a listing existed
         marketplace.total_listings = marketplace.total_listings - 1;
 
@@ -219,7 +226,14 @@ module marketplace::private_nft_market {
 
     public fun cancel_listing(nft: ID, marketplace: &mut Marketplace, ctx: &mut TxContext): EncryptedNFT {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
-        let Listing {nft, price: _, seller, image: _, name: _} = table::remove<ID, Listing>(&mut marketplace.listings, nft);
+        let Listing {
+            nft,
+            price: _,
+            seller,
+            image: _,
+            name: _,
+            secret_key: _,
+        } = table::remove<ID, Listing>(&mut marketplace.listings, nft);
         assert!(seller == tx_context::sender(ctx), ENotYourListing);
         marketplace.total_listings = marketplace.total_listings - 1;
         dof::remove<ID, EncryptedNFT>(&mut marketplace.id, nft)
