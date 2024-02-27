@@ -1,0 +1,28 @@
+.top-element {
+  margin-top: 33px;
+  margin-bottom: 31px;
+}
+
+#logo {
+  margin-right: 5px;
+  margin-left: 32px;
+}
+
+#text_top {
+  color: var(--mysten-red, #d40551);
+  font-family: Inter;
+  font-size: 18px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  margin-left: 5px;
+}
+
+#button_top {
+    background-color: black;
+    color: white;
+}
+
+#connect_button {
+    border-radius: 36px;
+}

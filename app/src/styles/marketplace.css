@@ -1,0 +1,10 @@
+.nft-card {
+    width: 25%;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 25, 39, 0.08);
+    background: var(--White-100, #FFF);
+}
+.nft-card img {
+    width: 100%;
+    height: auto;
+}

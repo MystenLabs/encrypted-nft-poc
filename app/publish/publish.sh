@@ -34,7 +34,7 @@ echo "Admin address used for publishing: ${ACTIVE_ADMIN_ADDRESS}"
 ACTIVE_NETWORK=$(sui client active-env)
 echo "Environment used is: ${ACTIVE_NETWORK}"
 
-publish_res=$(sui client publish --gas-budget 2000000000 --json ../counter/)
+publish_res=$(sui client publish --gas-budget 2000000000 --json ../../marketplace/)
 
 echo ${publish_res} >.publish.res.json
 
@@ -49,7 +49,7 @@ PACKAGE_ID=$(echo "${publish_res}" | jq -r '.effects.created[] | select(.owner =
 
 newObjs=$(echo "$publish_res" | jq -r '.objectChanges[] | select(.type == "created")')
 
-MARKETPLACE_CAP_ID=$(echo "$newObjs" | jq -r 'select (.objectType | contains("::private_nft_market::MarketplaceCap")).objectId')
+MARKETPLACE=$(echo "$newObjs" | jq -r 'select (.objectType | contains("::private_nft_market::Marketplace")).objectId')
 
 PUBLISHER_ID=$(echo "$newObjs" | jq -r 'select (.objectType | contains("package::Publisher")).objectId')
 
@@ -61,13 +61,12 @@ if [ $# -eq 0 ]; then
 fi
 
 cat >../.env<<-ENV
-FULLNODE=$NETWORK
-ADMIN_PHRASE=$ADMIN_PHRASE
-PACKAGE_ID=$PACKAGE_ID
+VITE_ADMIN_PHRASE=$ADMIN_PHRASE
+VITE_PACKAGE_ID=$PACKAGE_ID
 PUBLISHER_ID=$PUBLISHER_ID
-UPGRADE_CAP_ID=$UPGRADE_CAP_ID
-ADMIN_ADDRESS=$ACTIVE_ADMIN_ADDRESS
-ACTIVE_NETWORK=$ACTIVE_NETWORK
+VITE_ACTIVE_NETWORK=$ACTIVE_NETWORK
+VITE_MARKETPLACE=$MARKETPLACE
+VITE_LISTINGS_TABLE="please set to correct value"
 ENV
 
-echo "Weather Oracle Contracts Deployment finished!"
+echo "Encrypted NFT marketplace finished!"

@@ -1,60 +1,38 @@
-import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
-import { isValidSuiObjectId } from "@mysten/sui.js/utils";
-import { Box, Container, Flex, Heading } from "@radix-ui/themes";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { Box } from "@radix-ui/themes";
+import Marketplace from "./pages/Marketplace";
+import TopBar from "./components/Topbar";
+import "./styles/global.css";
+import WelcomePage from "./pages/WelcomePage";
+import SellPage from "./pages/SellPage";
 import { useState } from "react";
-import { Marketplace } from "./Marketplace";
-import { CreateMarketplace } from "./CreateMarketplace";
 
 function App() {
-  const currentAccount = useCurrentAccount();
-  const [marketplaceId, setMarketplace] = useState(() => {
-    const hash = window.location.hash.slice(1);
-    return isValidSuiObjectId(hash) ? hash : null;
-  });
+  const [showSellPage, setShowSellPage] = useState(false);
+  const currentAcc = useCurrentAccount();
 
+  const finishSell = () => {
+    setShowSellPage(false);
+  };
+
+  const startSell = () => {
+    setShowSellPage(true);
+  };
+
+  if (currentAcc == null) {
+    return (
+      <>
+        <WelcomePage />
+      </>
+    );
+  }
   return (
-    <>
-      <Flex
-        position="sticky"
-        px="4"
-        py="2"
-        justify="between"
-        style={{
-          borderBottom: "1px solid var(--gray-a2)",
-        }}
-      >
-        <Box>
-          <Heading>Encrypted NFT Marketplace</Heading>
-        </Box>
-
-        <Box>
-          <ConnectButton />
-        </Box>
-      </Flex>
-      <Container>
-        <Container
-          mt="5"
-          pt="2"
-          px="4"
-          style={{ background: "var(--gray-a2)", minHeight: 500 }}
-        >
-          {currentAccount ? (
-            marketplaceId ? (
-              <Marketplace id={marketplaceId} />
-            ) : (
-              <CreateMarketplace
-                onCreated={(id) => {
-                  window.location.hash = id;
-                  setMarketplace(id);
-                }}
-              />
-            )
-          ) : (
-            <Heading>Please connect your wallet</Heading>
-          )}
-        </Container>
-      </Container>
-    </>
+    <Box style={{ width: "100%", height: "100%" }}>
+      <TopBar onStartSell={startSell} />
+      <Box style={{ background: "var(--gray-a2)", height: "100%" }}>
+        {showSellPage ? <SellPage onFinish={finishSell} /> : <Marketplace />}
+      </Box>
+    </Box>
   );
 }
 
