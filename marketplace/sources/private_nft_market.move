@@ -12,9 +12,13 @@ module marketplace::private_nft_market {
     use sui::table::{Self, Table};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
-    
-    use std::string::String;
+    use sui::bls12381;
+    use sui::group_ops::{Self, Element};
+    use std::vector;
+    use sui::bcs;
+    use sui::hash::blake2b256;
 
+    use std::string::String;
 
     const EItemNotListed: u64 = 1;
     const EProofNotVerified: u64 = 2;
@@ -23,6 +27,7 @@ module marketplace::private_nft_market {
     const ENotYourOffer: u64 = 5;
     const ENoOfferForItem: u64 = 6;
     const EAnOfferAlreadyExists: u64 = 7;
+
 
     // Marketplace -> Shared object
     struct Marketplace has key {
@@ -39,7 +44,7 @@ module marketplace::private_nft_market {
         seller: address,
         image: String,
         name: String,
-        secret_key: vector<u8>
+        secret_key: ElGamalEncryption
     }
     
 
@@ -50,7 +55,7 @@ module marketplace::private_nft_market {
         image_url: String, // s3 or ipfs image url, todo: use metadata with display
         ciphertext_url: String,
         price: u64,
-        encrypted_master_key: vector<u8>,
+        encrypted_master_key: ElGamalEncryption
     }
 
     /// Represents the intent of a buyer to purchase.
@@ -62,15 +67,22 @@ module marketplace::private_nft_market {
         nft: ID // refers to the ID of EncryptedNFT
     }
 
-    // // Basic sigma protocol for proving equality of two ElGamal encryptions.
-    // // See https://crypto.stackexchange.com/questions/30010/is-there-a-way-to-prove-equality-of-plaintext-that-was-encrypted-using-different
-    // struct EqualityProof has drop, store {
-    //     a1: Element<ristretto255::G>,
-    //     a2: Element<ristretto255::G>,
-    //     a3: Element<ristretto255::G>,
-    //     z1: Element<ristretto255::Scalar>,
-    //     z2: Element<ristretto255::Scalar>,
-    // }
+    // Basic sigma protocol for proving equality of two ElGamal encryptions.
+    // See https://crypto.stackexchange.com/questions/30010/is-there-a-way-to-prove-equality-of-plaintext-that-was-encrypted-using-different
+    // same as pub struct EqualityProof in rust CLI. 
+    struct EqualityProof has drop, store {
+        s1: Element<bls12381::Scalar>, // z1
+        s2: Element<bls12381::Scalar>, // z2
+        u1: Element<bls12381::G1>, // a1
+        u2: Element<bls12381::G1>, // a2
+        v: Element<bls12381::G1>, // a3
+    }
+
+    // An encryption of group element m under pk is (r*G, r*pk + m) for random r.
+    struct ElGamalEncryption has drop, copy, store {
+        ephemeral: Element<bls12381::G1>,
+        ciphertext: Element<bls12381::G1>,
+    }
 
     // Events
 
@@ -96,6 +108,19 @@ module marketplace::private_nft_market {
 
     // Functions    
 
+    // The following is insecure since the nonce is small, but in practice it should be a random scalar.
+    #[test_only]
+    public fun insecure_elgamal_encrypt(
+        pk: &Element<bls12381::G1>,
+        r: u64,
+        m: &Element<bls12381::G1>
+    ): ElGamalEncryption {
+        let r = bls12381::scalar_from_u64(r);
+        let ephemeral = bls12381::g1_mul(&r, &bls12381::g1_generator());
+        let pk_r  = bls12381::g1_mul(&r, pk);
+        let ciphertext = bls12381::g1_add(m, &pk_r);
+        ElGamalEncryption { ephemeral, ciphertext }
+    }
 
     /// Create and share a Marketplace object.
    fun init(ctx: &mut TxContext) {
@@ -116,7 +141,7 @@ module marketplace::private_nft_market {
         price: u64,
         image_url: String,
         ciphertext_url: String,
-        encrypted_master_key: vector<u8>,
+        encrypted_master_key: ElGamalEncryption,
         name: String,
         ctx: &mut TxContext)
     {
@@ -182,12 +207,14 @@ module marketplace::private_nft_market {
     }
 
     /// Called by seller to accept the offer.
-    public entry fun accept_offer(
+    public fun accept_offer(
         marketplace: &mut Marketplace, 
         nft: ID,
-        _proof: vector<u8>,
-        // proof: EqualityProof,
-        encrypted_master_key: vector<u8>,
+        prev_enc_msk: &ElGamalEncryption,
+        curr_enc_msk: ElGamalEncryption,
+        seller_pk: &Element<bls12381::G1>,
+        buyer_pk: &Element<bls12381::G1>,
+        proof: &EqualityProof,
         ctx: &mut TxContext
     ) {
         assert!(table::contains<ID, Listing>(&marketplace.listings, nft), EItemNotListed);
@@ -204,17 +231,16 @@ module marketplace::private_nft_market {
         
         let Offer { buyer, payment, pk: _, nft: _ }  = table::remove<ID, Offer>(&mut marketplace.offers, nft);
 
-        // equility_verify(&pk1, &pk2, &enc1, &enc2, &proof);
-        // pub struct ConsistencyProof<ScalarType, G1Element> {
-        // pub s1: ScalarType,
-        // pub s2: ScalarType,
-        // pub u1: G1Element,
-        // pub u2: G1Element,
-        // pub v: G1Element,
-        // }
+        equality_verify(
+            seller_pk,
+            buyer_pk,
+            prev_enc_msk, 
+            &curr_enc_msk, 
+            proof
+        );
 
         let enft: EncryptedNFT = dof::remove(&mut marketplace.id, nft);
-        enft.encrypted_master_key = encrypted_master_key;
+        enft.encrypted_master_key = curr_enc_msk;
         // this cannot underflow since a listing existed
         marketplace.total_listings = marketplace.total_listings - 1;
 
@@ -246,4 +272,140 @@ module marketplace::private_nft_market {
         payment
     }
 
+    public fun equality_verify(
+        pk1: &Element<bls12381::G1>, // seller 
+        pk2: &Element<bls12381::G1>, // buyer
+        enc1: &ElGamalEncryption, // prev encryption
+        enc2: &ElGamalEncryption, // curr encryption
+        proof: &EqualityProof
+    ): bool {
+        let c = fiat_shamir_challenge(pk1, pk2, enc1, enc2, &proof.u1, &proof.u2, &proof.v);
+        // Check if z1*G = a1 + c*pk1
+        let lhs = bls12381::g1_mul(&proof.s1, &bls12381::g1_generator());
+        let pk1_c = bls12381::g1_mul(&c, pk1);
+        let rhs = bls12381::g1_add(&proof.u1, &pk1_c);
+        if (!group_ops::equal(&lhs, &rhs)) {
+            return false
+        };
+        // Check if z2*G = a2 + c*eph2
+        let lhs = bls12381::g1_mul(&proof.s2, &bls12381::g1_generator());
+        let eph2_c = bls12381::g1_mul(&c, &enc2.ephemeral);
+        let rhs = bls12381::g1_add(&proof.u2, &eph2_c);
+        if (!group_ops::equal(&lhs, &rhs)) {
+            return false
+        };
+        //if prev_enc_msk.ephemeral * proof.s1 - buyer_enc_pk * proof.s2
+        // != (prev_enc_msk.ciphertext - curr_enc_msk.ciphertext) * c + proof.v
+        
+        // Check if a3 = c*(ct2 - ct1) + z1*eph1 - z2*pk2
+        let scalars = vector::singleton(c);
+        vector::push_back(&mut scalars, bls12381::scalar_neg(&c));
+        vector::push_back(&mut scalars, proof.s1);
+        vector::push_back(&mut scalars, bls12381::scalar_neg(&proof.s2));
+        let points = vector::singleton(enc2.ciphertext);
+        vector::push_back(&mut points, enc1.ciphertext);
+        vector::push_back(&mut points, enc1.ephemeral);
+        vector::push_back(&mut points, *pk2);
+        let lhs = bls12381::g1_multi_scalar_multiplication(&scalars, &points);
+        if (!group_ops::equal(&lhs, &proof.v)) {
+            return false
+        };
+
+        return true
+    }
+
+    public fun fiat_shamir_challenge(
+        pk1: &Element<bls12381::G1>,
+        pk2: &Element<bls12381::G1>,
+        enc1: &ElGamalEncryption,
+        enc2: &ElGamalEncryption,
+        a1: &Element<bls12381::G1>,
+        a2: &Element<bls12381::G1>,
+        a3: &Element<bls12381::G1>,
+    ): Element<bls12381::Scalar> {
+        let to_hash = vector::empty<u8>();
+        vector::append(&mut to_hash, *group_ops::bytes(pk1));
+        vector::append(&mut to_hash, *group_ops::bytes(pk2));
+        vector::append(&mut to_hash, *group_ops::bytes(&enc1.ephemeral));
+        vector::append(&mut to_hash, *group_ops::bytes(&enc1.ciphertext));
+        vector::append(&mut to_hash, *group_ops::bytes(&enc2.ephemeral));
+        vector::append(&mut to_hash, *group_ops::bytes(&enc2.ciphertext));
+        vector::append(&mut to_hash, *group_ops::bytes(a1));
+        vector::append(&mut to_hash, *group_ops::bytes(a2));
+        vector::append(&mut to_hash, *group_ops::bytes(a3));
+        let hash = blake2b256(&to_hash);
+        
+        // Make sure we are in the right field. Note that for security we only need the lower 128 bits.
+        let len = vector::length(&hash);
+        *vector::borrow_mut(&mut hash, len-1) = 0;
+        bls12381::scalar_from_bytes(&hash)
+    }
+
+    // The following is insecure since the nonces are small, but in practice they should be random scalars.
+    #[test_only]
+    public fun insecure_equility_prove(
+        pk1: &Element<bls12381::G1>,
+        pk2: &Element<bls12381::G1>,
+        enc1: &ElGamalEncryption,
+        enc2: &ElGamalEncryption,
+        sk1: &Element<bls12381::Scalar>,
+        r1: u64,
+        r2: u64,
+    ): EqualityProof {
+        let b1 = bls12381::scalar_from_u64(r1);
+        let b2 = bls12381::scalar_from_u64(r1+123);
+        let r2 = bls12381::scalar_from_u64(r2);
+
+        // a1 = b1*G (for proving knowledge of sk1)
+        let u1 = bls12381::g1_mul(&b1, &bls12381::g1_generator());
+        // a2 = b2*g (for proving knowledge of r2)
+        let u2 = bls12381::g1_mul(&b2, &bls12381::g1_generator());
+        let scalars = vector::singleton(b1);
+        vector::push_back(&mut scalars, bls12381::scalar_neg(&b2));
+        let points = vector::singleton(enc1.ephemeral);
+        vector::push_back(&mut points, *pk2);
+        let v = bls12381::g1_multi_scalar_multiplication(&scalars, &points);
+        // RO challenge
+        let c = fiat_shamir_challenge(pk1, pk2, enc1, enc2, &u1, &u2, &v);
+        // z1 = b1 + c*sk1
+        let s1 = bls12381::scalar_add(&bls12381::scalar_mul(&c, sk1), &b1);
+        // z2 = b2 + c*r2
+        let s2 = bls12381::scalar_add(&bls12381::scalar_mul(&c, &r2), &b2);
+
+        EqualityProof { s1, s2, u1, u2, v }
+    }
+
+    // A function to deserizalize `ElGamalEncryption`s from a vector.
+    #[test_only]
+    public fun elgamal_encryption_from_bytes(bytes: vector<u8>): ElGamalEncryption {
+        let bytes_reader = bcs::new(bytes);
+        
+        let ephemeral = bls12381::g1_from_bytes(&mut bytes_reader);
+        let ciphertext = bls12381::g1_from_bytes(&mut bytes_reader);
+        
+        ElGamalEncryption {
+            ephemeral: ephemeral,
+            ciphertext: ciphertext,
+        }
+    }
+
+    // A function to deserizalize `EqualityProof` from bytes. 
+    #[test_only]
+    public fun equality_proof_from_bytes(bytes: vector<u8>): EqualityProof {
+        let bytes_reader = bcs::new(bytes);
+        
+        let s1 = bls12381::scalar_from_bytes(&mut bytes_reader);
+        let s2 = bls12381::scalar_from_bytes(&mut bytes_reader);
+        let u1 = bls12381::g1_from_bytes(&mut bytes_reader);
+        let u2 = bls12381::g1_from_bytes(&mut bytes_reader);
+        let v = bls12381::g1_from_bytes(&mut bytes_reader);
+        
+        EqualityProof {
+            s1: s1,
+            s2: s2,
+            u1: u1,
+            u2: u2,
+            v: v,
+        }
+    }
 }

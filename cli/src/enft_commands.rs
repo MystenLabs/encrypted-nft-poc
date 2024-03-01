@@ -8,11 +8,11 @@ use fastcrypto::aes::Cipher;
 use fastcrypto::aes::InitializationVector;
 use fastcrypto::encoding::{Encoding, Hex};
 use fastcrypto::groups::bls12381::{G1Element, Scalar};
-use fastcrypto::hash::Sha3_256;
+use fastcrypto::hash::Blake2b256;
 use fastcrypto::serde_helpers::ToFromByteArray;
 use fastcrypto::traits::Generate;
 use fastcrypto::{
-    groups::{FiatShamirChallenge, GroupElement, Scalar as ScalarTrait},
+    groups::{GroupElement, Scalar as ScalarTrait},
     hash::HashFunction,
 };
 use serde::{Deserialize, Serialize};
@@ -258,18 +258,15 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             let u2 = gen * beta;
             let v = prev_enc_msk.ephemeral * alpha - buyer_pk * beta;
 
-            let mut fiat_shamir_msg = Sha3_256::new();
-            fiat_shamir_msg.update(seller_enc_pk.to_byte_array());
-            fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
-            fiat_shamir_msg.update(buyer_pk.to_byte_array());
-            fiat_shamir_msg.update(&bcs::to_bytes(&new_enc_msk).unwrap());
-            fiat_shamir_msg.update(u1.to_byte_array());
-            fiat_shamir_msg.update(u2.to_byte_array());
-            fiat_shamir_msg.update(v.to_byte_array());
-
-            let digest = fiat_shamir_msg.finalize().digest;
-            let c =
-                <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
+            let c = fiat_shamir_challenge(
+                &seller_enc_pk,
+                &buyer_pk,
+                &prev_enc_msk,
+                &new_enc_msk,
+                u1,
+                u2,
+                v,
+            );
 
             let proof = EqualityProof {
                 s1: seller_enc_sk * c + alpha,
@@ -327,18 +324,15 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             )
             .unwrap();
 
-            let mut fiat_shamir_msg = Sha3_256::new();
-            fiat_shamir_msg.update(seller_enc_pk.to_byte_array());
-            fiat_shamir_msg.update(&bcs::to_bytes(&prev_enc_msk).unwrap());
-            fiat_shamir_msg.update(buyer_enc_pk.to_byte_array());
-            fiat_shamir_msg.update(&bcs::to_bytes(&curr_enc_msk).unwrap());
-            fiat_shamir_msg.update(proof.u1.to_byte_array());
-            fiat_shamir_msg.update(proof.u2.to_byte_array());
-            fiat_shamir_msg.update(proof.v.to_byte_array());
-
-            let digest = fiat_shamir_msg.finalize().digest;
-            let c =
-                <Scalar as FiatShamirChallenge>::fiat_shamir_reduction_to_group_element(&digest);
+            let c = fiat_shamir_challenge(
+                &seller_enc_pk,
+                &buyer_enc_pk,
+                &prev_enc_msk,
+                &curr_enc_msk,
+                proof.u1,
+                proof.u2,
+                proof.v,
+            );
             let gen = <G1Element as GroupElement>::generator();
 
             if gen * proof.s1 != seller_enc_pk * c + proof.u1 {
@@ -358,4 +352,29 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
             Ok(())
         }
     }
+}
+
+fn fiat_shamir_challenge(
+    pk1: &G1Element,
+    pk2: &G1Element,
+    enc1: &ElGamalEncryption,
+    enc2: &ElGamalEncryption,
+    a1: G1Element,
+    a2: G1Element,
+    a3: G1Element,
+) -> Scalar {
+    let mut fiat_shamir_msg = Blake2b256::new();
+    fiat_shamir_msg.update(pk1.to_byte_array());
+    fiat_shamir_msg.update(pk2.to_byte_array());
+    fiat_shamir_msg.update(enc1.ephemeral.to_byte_array());
+    fiat_shamir_msg.update(enc1.ciphertext.to_byte_array());
+    fiat_shamir_msg.update(enc2.ephemeral.to_byte_array());
+    fiat_shamir_msg.update(enc2.ciphertext.to_byte_array());
+    fiat_shamir_msg.update(a1.to_byte_array());
+    fiat_shamir_msg.update(a2.to_byte_array());
+    fiat_shamir_msg.update(a3.to_byte_array());
+
+    let mut digest = fiat_shamir_msg.finalize().digest;
+    digest[31] = 0;
+    Scalar::from_byte_array(&digest).unwrap()
 }
