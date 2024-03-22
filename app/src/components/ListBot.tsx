@@ -8,20 +8,20 @@ import { useMarket } from "../web3hooks";
 import FileUpload from "./FileUpload";
 import RightArrow from "../../assets/arrow_right.svg";
 
-interface SellBotProps {
+interface ListBotProps {
   step: number;
   goNext: () => void;
 }
-const SellBot = ({ step, goNext }: SellBotProps) => {
+
+export const ListBot = ({ step, goNext }: ListBotProps) => {
   const [image, setImage] = useState<string | null>(null);
   const [isBlurred, setIsBlurred] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
   const [tags, setTags] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [price, setPrice] = useState<number>(1);
   const [cipherURL, setCipherURL] = useState<string>("");
   const [secretKey, setSecretKey] = useState<string>("");
-  const { list } = useMarket();
+  const { createNFT } = useMarket();
   const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
 
   const backend = import.meta.env.VITE_BACKEND as string;
@@ -67,22 +67,7 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
     // img.src = data.obfuscatedImage;
   };
 
-  const onDeobfuscateClick = async () => {
-    console.log(cipherURL)
-    const response = await fetch(backend + "deobfuscate", {
-      method: "POST",
-      headers: { "Content-type": "application/json" },
-      body: JSON.stringify({
-        obfuscatedImageUrl: cipherURL.replace("_ciphertext", ""),
-        cipherUrl: cipherURL,
-        encSecretKey: secretKey,
-        seller: account?.address,
-      }),
-    });
-    const data = await response.json();
-    setIsBlurred(false);
-    setImage(data.deobfuscatedImage);
-  }
+  
 
   useEffect(() => {
     if (canvasRef.current === null) {
@@ -101,13 +86,15 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
   }, [step, image]);
   
   const finish = async () => {
-    const tx = list(
-      price.toString().concat("000000000"),
-      cipherURL.replace("_ciphertext", ""),
+    const tx = createNFT(
       name,
+      cipherURL.replace("_ciphertext", ""),
       cipherURL,
       Array.from(Buffer.from(secretKey, 'hex')),
+      [1,2,3,4],
+      account?.address as string,
     );
+
     signAndExecute(
       {
         transactionBlock: tx,
@@ -211,35 +198,6 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                   placeholder="Enter a short description of your NFT."
                 />
               </Flex>
-              <Flex
-                direction={"column"}
-                align={"stretch"}
-                style={{ padding: "10px" }}
-              >
-                <label style={{ fontSize: "14px", fontFamily: "Inter" }}>
-                  Price per copy
-                </label>
-                {/* free asset */}
-                <Box>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => {
-                      setPrice(Number(e.target.value));
-                    }}
-                    placeholder="1"
-                  />
-                  <span
-                    style={{
-                      left: "-40px",
-                      position: "relative",
-                      color: "#767A81",
-                    }}
-                  >
-                    SUI
-                  </span>
-                </Box>
-              </Flex>
             </Flex>
           </Flex>
           <Flex direction={"column"}>
@@ -251,10 +209,6 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
               >
                 Obfuscate
               </Button>
-              <Button
-                disabled={isBlurred ? false: true}
-                onClick={onDeobfuscateClick}
-                >Deobfuscate</Button>
             </Box>
             <Box
               style={{
@@ -375,41 +329,16 @@ const SellBot = ({ step, goNext }: SellBotProps) => {
                 {description}
               </p>
             </Box>
-            <Box style={{ margin: "10px" }}>
-              <label
-                style={{
-                  fontSize: "14px",
-                  color: "black",
-                  opacity: "0.5",
-                  fontFamily: "Inter",
-                  fontWeight: "600",
-                }}
-              >
-                Price per copy
-              </label>
-              <p
-                style={{
-                  color: "black",
-                  fontWeight: 500,
-                  fontFamily: "Inter",
-                  fontSize: "18px",
-                }}
-              >
-                {price} SUI
-              </p>
-            </Box>
           </Flex>
         </Flex>
         <Button
           style={{ backgroundColor: "#F50032", width: "20%", marginLeft: "auto"}}
           onClick={finish}
         >
-          List NFT <img src={RightArrow} />
+          Mint NFT <img src={RightArrow} />
         </Button>
       </Flex>
     );
   }
   return <></>;
 };
-
-export default SellBot;

@@ -1,13 +1,13 @@
 import { Box, Flex } from "@radix-ui/themes";
 import { useState } from "react";
-import SellTop from "../components/SellTop";
-import SellBot from "../components/SellBot";
+import {ListTop} from "../components/ListTop";
+import {ListBot} from "../components/ListBot";
 
 interface SellPageProps {
   onFinish: () => void;
 }
 
-const SellPage = ({ onFinish }: SellPageProps) => {
+export const ListPage = ({ onFinish }: SellPageProps) => {
   const [step, setStep] = useState(1);
 
   if (step === 0 || step === 4) {
@@ -24,7 +24,7 @@ const SellPage = ({ onFinish }: SellPageProps) => {
         align={"center"}
         style={{ backgroundColor: "white", height: "7%", width: "100%", padding: "20px 32px" }}
       >
-        <SellTop step={step} setStep={setStep}></SellTop>
+        <ListTop step={step} setStep={setStep} />
       </Flex>
       <Flex
         direction={"column"}
@@ -38,10 +38,8 @@ const SellPage = ({ onFinish }: SellPageProps) => {
           padding: "32px",
         }}
       >
-        <SellBot step={step} goNext={goNext} />
+        <ListBot step={step} goNext={goNext} />
       </Flex>
     </>
   );
 };
-
-export default SellPage;

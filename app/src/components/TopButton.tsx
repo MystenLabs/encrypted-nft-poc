@@ -1,19 +1,18 @@
 import { Button } from "@radix-ui/themes";
 import icon from "../../assets/arrow-up-right.svg";
 
-
 interface TopButtonProps {
-  onStartSell: ()=> void;
+  onStart: () => void;
 }
 
-const TopButton = ({ onStartSell }: TopButtonProps) => {
+const TopButton = ({ onStart }: TopButtonProps) => {
   const handleClick = () => {
-    onStartSell();
+    onStart();
   };
   return (
     <>
       <Button radius="full" id="button_top" onClick={handleClick}>
-        Sell your artwork
+        List a NFT
         <img src={icon} alt="arrow-up" />
       </Button>
     </>

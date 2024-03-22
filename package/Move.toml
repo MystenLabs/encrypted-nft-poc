@@ -1,8 +1,8 @@
 [package]
-name = "marketplace"
+name = "package"
 version = "0.0.1"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet" }
 [addresses]
-marketplace = "0x0"
+package = "0x0"

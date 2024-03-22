@@ -80,7 +80,7 @@ export const generateKeypair = async () => {
   };
 };
 
-export const encryptSecretKey = async (
+export const encryptSecretKey =  (
   secretKey: Uint8Array,
   privateKey: string
 ) => {
@@ -89,7 +89,7 @@ export const encryptSecretKey = async (
   return encrypt(pubKey, secretKey).toString("hex");
 };
 
-export const decryptSecretKey = async (
+export const decryptSecretKey = (
   encryptedKey: string,
   privateKey: string
 ) => {
@@ -154,9 +154,9 @@ export const deobfuscate = async (
   secretKey: Uint8Array
 ) => {
   const img = await Image.load(obfuscatedImage);
-  // const pixels = img.getPixelsArray();
+  const d = await aesDecrypt(ciphertext, secretKey);
   const decrypted: ColorValues = JSON.parse(
-    await aesDecrypt(ciphertext, secretKey)
+    d
   );
   for (let [key, value] of Object.entries(decrypted)) {
     const [x, y] = key.split(",").map(Number);

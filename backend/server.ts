@@ -47,11 +47,39 @@ app.post("/public_key", async (req, res) => {
   return res.send({ publicKey: user.pub_key });
 });
 
+app.post("/transfer_to", async (req, res) => {
+  const {owner, recipient, encryptedMasterKey} = req.body;
+
+  let ownerUser = await prisma.user.findUnique({
+    where: {
+      id: owner
+    }
+  });
+  let recipientUser = await prisma.user.findUnique({
+    where: {
+      id: recipient
+    }
+  });
+  if (!recipientUser) {
+    const { publicKey, privateKey } = await generateKeypair();
+    recipientUser = await prisma.user.create({
+      data: {
+        id: recipient,
+        priv_key: privateKey,
+        pub_key: publicKey,
+      },
+    });
+  };
+  const secretKey = decryptSecretKey(encryptedMasterKey, ownerUser?.priv_key!);
+  const reEncrypted = encryptSecretKey(Uint8Array.from(secretKey), recipientUser.priv_key!);
+  return res.send({encryptedSecretKey: reEncrypted});
+});
+
 app.post("/obfuscate", async (req, res) => {
   const { image, seller, imageName } = req.body;
   const { obfuscatedImage, ciphertext, secretKey } = await obfuscate(
     image,
-    "cross"
+    "uniform"
   );
 
   let user = await prisma.user.findUnique({
@@ -70,8 +98,8 @@ app.post("/obfuscate", async (req, res) => {
     });
   }
 
-  const encryptedSecretKey = await encryptSecretKey(secretKey, user.priv_key!);
-  const cipherUrl = await uploadCiphertext(ciphertext, imageName);
+  const encryptedSecretKey = encryptSecretKey(secretKey, user.priv_key!);
+  const cipherUrl = uploadCiphertext(ciphertext, imageName);
   await uploadImage(obfuscatedImage, imageName);
   return res.send({ obfuscatedImage, cipherUrl, encryptedSecretKey });
 });
@@ -92,64 +120,11 @@ app.post("/deobfuscate", async (req, res) => {
   response = await fetch(obfuscatedImageUrl);
   const blob = await response.blob();
   const obfuscatedImage = new Uint8Array(await blob.arrayBuffer());
-  const secretKey = await decryptSecretKey(encSecretKey, user.priv_key!);
-
+  const secretKey = decryptSecretKey(encSecretKey, user.priv_key!);
+  console.log(secretKey);
   const deobfuscatedImage = await deobfuscate(obfuscatedImage, ciphertext, secretKey);
 
   return res.send({deobfuscatedImage});
-});
-
-app.post("/accept", async (req, res) => {
-  const { seller, buyer, encryptedSecretKey } = req.body;
-  let buyerUser = await prisma.user.findUnique({
-    where: {
-      id: buyer,
-    },
-  });
-  const sellerUser = await prisma.user.findUnique({
-    where: {
-      id: seller,
-    },
-  });
-  if (!sellerUser) {
-    return res.status(400).send({ message: "Invalid seller or buyer" });
-  }
-  if (!buyerUser) {
-    const { publicKey, privateKey } = await generateKeypair();
-    buyerUser = await prisma.user.create({
-      data: {
-        id: seller,
-        priv_key: publicKey,
-        pub_key: privateKey,
-      },
-    });
-  }
-  
-  const secretKey = await decryptSecretKey(
-    encryptedSecretKey,
-    sellerUser.priv_key!
-  );
-
-  const reEncrypted = await encryptSecretKey(Uint8Array.from(secretKey), buyerUser.priv_key!);
-
-  return res.send({ secretKey: reEncrypted });
-});
-
-app.post("/show", async (req, res) => {
-  const { obfuscatedImage, ciphertext, secretKey, seller } = req.body;
-  const user: any = prisma.user.findUnique({
-    where: { id: seller },
-  });
-  if (!user) {
-    return res.status(400).send({ message: "Invalid user" });
-  }
-  const decrypted = await decryptSecretKey(secretKey, user.priv_key!);
-  const deobfuscatedImage = await deobfuscate(
-    obfuscatedImage,
-    ciphertext,
-    decrypted
-  );
-  return res.send({ deobfuscatedImage });
 });
 
 app.listen(3000, () =>

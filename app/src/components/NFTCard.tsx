@@ -7,20 +7,15 @@ import SuiSymbol from "../../assets/sui-symbol.svg";
 interface NFTCardProps {
   image: string;
   name: string;
-  price: string;
   id: string;
-  seller: string;
-  pk: number[];
+  owner: string;
   index: number;
   openNFTPage: (index: number) => void;
 }
 const NFTCard = ({
   image,
   name,
-  price,
-  id,
-  seller,
-  pk,
+  owner,
   index,
   openNFTPage,
 }: NFTCardProps) => {
@@ -28,33 +23,8 @@ const NFTCard = ({
   // const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
 
   const account = useCurrentAccount();
-  const showBorder = account?.address === seller && pk.length > 0;
   const clicked = () => {
     openNFTPage(index);
-    // if (showBorder) {
-    //   // accepting offer
-      
-    // } else {
-    //   const tx = buyOffer(
-    //     id,
-    //     price,
-    //     Array.from(account?.publicKey as Uint8Array),
-    //   );
-    //   signAndExecute(
-    //     {
-    //       transactionBlock: tx,
-    //       requestType: "WaitForLocalExecution",
-    //     },
-    //     {
-    //       onSuccess: () => {
-    //         console.log("Success");
-    //       },
-    //       onError: (error) => {
-    //         console.log(error);
-    //       },
-    //     },
-    //   );
-    // }
   };
   return (
       <Flex
@@ -65,18 +35,16 @@ const NFTCard = ({
         onClick={clicked}
         style={{
           cursor: "pointer",
-          border: showBorder ? "4px solid #d40551" : " 0px solid transparent",
           margin: "5px",
         }}
       >
         <img src={image} alt={name} />
         <Flex direction={"row"}>
-          Price:{" "}
-          <img
+        <img
             src={SuiSymbol}
             style={{ height: "1em", width: "auto", margin: "5px" }}
           />
-          {price.substring(0, price.length - 9)}
+          Name: {name}
         </Flex>
       </Flex>
   );
