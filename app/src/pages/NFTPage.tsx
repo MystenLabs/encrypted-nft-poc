@@ -33,7 +33,6 @@ const NFTPage = ({
   const { transferNFT } = useMarket();
 
   const handleClick = async () => {
-    console.log(account?.address);
     const resp = await fetch(backend + "transfer_to", {
       method: "POST",
       headers: { "Content-type": "application/json" },
@@ -59,7 +58,7 @@ const NFTPage = ({
   };
 
   const onDeobfuscateClick = async () => {
-    console.log(cipherURL);
+    console.log("TOOOYOOTO", secretKey, Array.isArray(secretKey));
     const response = await fetch(backend + "deobfuscate", {
       method: "POST",
       headers: { "Content-type": "application/json" },

@@ -1,6 +1,10 @@
 import { Image } from "image-js";
 import * as crypto from "crypto";
 import { encrypt, decrypt, PrivateKey } from "eciesjs";
+import {bls12_381} from "@noble/curves/bls12-381";
+import { ProjPointType } from "@noble/curves/abstract/weierstrass";
+import { sha256 } from "@noble/hashes/sha256";
+
 
 interface ColorValues {
   [key: string]: number[];
@@ -71,6 +75,40 @@ const crossTemplate = async (image: string): Promise<number[][]> => {
   return selectedPixels;
 };
 
+export const generatePrivateKey = () => {
+  return bls12_381.utils.randomPrivateKey();
+}
+
+export const encryptSecretKeyBLS = (secretKey: Uint8Array, privateKey: Uint8Array) => {
+  
+  const publicKey = bls12_381.G1.ProjectivePoint.BASE.multiply(BigInt(`0x${Buffer.from(privateKey).toString('hex')}`));
+  const randomBytes = BigInt(`0x${crypto.randomBytes(8).toString('hex')}`);
+  const ephemeral = bls12_381.G1.ProjectivePoint.BASE.multiply(randomBytes);
+  const cipher_ = publicKey.multiply(randomBytes);
+  const cipher = cipher_.add(bls12_381.G1.ProjectivePoint.fromHex(Buffer.from(secretKey).toString('hex')));
+
+  return serializeToHex({ephemeral, cipher});
+}
+
+export const decryptSecretKeyBLS = (hexString: string, privateKey: Uint8Array) => {
+  const {ephemeral, cipher} = desirializeFromHex(hexString);
+  const dec = ephemeral.multiply(bls12_381.G1.normPrivateKeyToScalar(privateKey));
+  return cipher.subtract(dec).toRawBytes();
+}
+
+const serializeToHex = ({ephemeral, cipher}: {ephemeral: ProjPointType<bigint>, cipher: ProjPointType<bigint>}) => {
+  const toSerialize = {ephemeral: ephemeral.toHex(), cipher: cipher.toHex()};
+  const jsonString = JSON.stringify(toSerialize);
+  return Buffer.from(jsonString).toString('hex');
+}
+
+const desirializeFromHex = (hex: string) => {
+  const jsonString = Buffer.from(hex, 'hex').toString('utf-8');
+  const {ephemeral, cipher} = JSON.parse(jsonString);
+  return {ephemeral: bls12_381.G1.ProjectivePoint.fromHex(ephemeral), cipher: bls12_381.G1.ProjectivePoint.fromHex(cipher)};
+
+}
+
 export const generateKeypair = async () => {
   const privKey = new PrivateKey();
   const pubKey = privKey.publicKey.toHex();
@@ -136,10 +174,10 @@ export const obfuscate = async (image: string, method: string = "cross") => {
   const obfuscatedImage = new Image(img.width, img.height, img.data);
 
   // generate a new secret key
-  const secretKey = crypto.getRandomValues(new Uint8Array(32));
-
+  const secretKey = generateSecretKey()
+  const secretKeyHash = sha256.create().update(secretKey).digest();
   // encrypt the color values
-  const ciphertext = await aesEncrypt(JSON.stringify(values), secretKey);
+  const ciphertext = await aesEncrypt(JSON.stringify(values), secretKeyHash);
 
   return {
     obfuscatedImage: imgToBase64(obfuscatedImage),
@@ -154,7 +192,8 @@ export const deobfuscate = async (
   secretKey: Uint8Array
 ) => {
   const img = await Image.load(obfuscatedImage);
-  const d = await aesDecrypt(ciphertext, secretKey);
+  const secretKeyHash = sha256.create().update(secretKey).digest();
+  const d = await aesDecrypt(ciphertext, secretKeyHash);
   const decrypted: ColorValues = JSON.parse(
     d
   );
@@ -165,3 +204,9 @@ export const deobfuscate = async (
 
   return imgToBase64(img);
 };
+
+export const generateSecretKey = () => {
+  console.log(bls12_381.G1.CURVE.n);
+  const random = BigInt(`0x${crypto.randomBytes(8).toString("hex")}`);
+  return bls12_381.G1.ProjectivePoint.BASE.multiply(random).toRawBytes();
+}

@@ -13,8 +13,6 @@ datasource db {
 model User {
     // using the address of each user as the primary key to be indexed automatically
     id String @unique @id
-    mnemomic String?
-    // base64 or hex? encoded
     priv_key String @default("")
     pub_key String @default("")
 }

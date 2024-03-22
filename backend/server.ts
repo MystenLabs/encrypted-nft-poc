@@ -10,6 +10,10 @@ import {
   deobfuscate,
   encryptSecretKey,
   decryptSecretKey,
+  encryptSecretKeyBLS,
+  decryptSecretKeyBLS,
+  generatePrivateKey,
+  generateSecretKey,
 } from "./images/obfuscate";
 import { uploadCiphertext, deleteItem, uploadImage } from "./images/bucket";
 
@@ -17,7 +21,8 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "35mb" }));
 
-app.get("/", async (req, res) => {
+app.get("/", async (_req, res) => {
+  // sanity check
   return res.send({ message: "🚀 API is functional 🚀" });
 });
 
@@ -26,53 +31,37 @@ app.get("/users", async (req, res) => {
   return res.send(users);
 });
 
-app.post("/public_key", async (req, res) => {
-  const { buyer } = req.body;
-
-  let user = await prisma.user.findUnique({
-    where: {
-      id: buyer,
-    },
-  });
-  if (!user) {
-    const { publicKey, privateKey } = await generateKeypair();
-    user = await prisma.user.create({
-      data: {
-        id: buyer,
-        priv_key: privateKey,
-        pub_key: publicKey,
-      },
-    });
-  }
-  return res.send({ publicKey: user.pub_key });
-});
-
 app.post("/transfer_to", async (req, res) => {
-  const {owner, recipient, encryptedMasterKey} = req.body;
+  const { owner, recipient, encryptedMasterKey } = req.body;
 
   let ownerUser = await prisma.user.findUnique({
     where: {
-      id: owner
-    }
+      id: owner,
+    },
   });
   let recipientUser = await prisma.user.findUnique({
     where: {
-      id: recipient
-    }
+      id: recipient,
+    },
   });
   if (!recipientUser) {
-    const { publicKey, privateKey } = await generateKeypair();
+    const privateKey = generatePrivateKey();
     recipientUser = await prisma.user.create({
       data: {
         id: recipient,
-        priv_key: privateKey,
-        pub_key: publicKey,
+        priv_key: Buffer.from(privateKey).toString("hex"),
       },
     });
-  };
-  const secretKey = decryptSecretKey(encryptedMasterKey, ownerUser?.priv_key!);
-  const reEncrypted = encryptSecretKey(Uint8Array.from(secretKey), recipientUser.priv_key!);
-  return res.send({encryptedSecretKey: reEncrypted});
+  }
+  const secretKey = decryptSecretKeyBLS(
+    encryptedMasterKey,
+    Uint8Array.from(Buffer.from(ownerUser.priv_key!, "hex"))
+  );
+  const reEncrypted = encryptSecretKeyBLS(
+    secretKey,
+    Uint8Array.from(Buffer.from(recipientUser.priv_key!, "hex"))
+  );
+  return res.send({ encryptedSecretKey: reEncrypted });
 });
 
 app.post("/obfuscate", async (req, res) => {
@@ -88,19 +77,22 @@ app.post("/obfuscate", async (req, res) => {
     },
   });
   if (!user) {
-    const { publicKey, privateKey } = await generateKeypair();
+    const privateKey = generatePrivateKey();
     user = await prisma.user.create({
       data: {
         id: seller,
-        priv_key: privateKey,
-        pub_key: publicKey,
+        priv_key: Buffer.from(privateKey).toString("hex"),
       },
     });
   }
 
-  const encryptedSecretKey = encryptSecretKey(secretKey, user.priv_key!);
-  const cipherUrl = uploadCiphertext(ciphertext, imageName);
+  const encryptedSecretKey = encryptSecretKeyBLS(
+    secretKey,
+    Uint8Array.from(Buffer.from(user.priv_key!, "hex"))
+  );
+  const cipherUrl = await uploadCiphertext(ciphertext, imageName);
   await uploadImage(obfuscatedImage, imageName);
+  console.log(cipherUrl);
   return res.send({ obfuscatedImage, cipherUrl, encryptedSecretKey });
 });
 app.post("/cancel_obfuscate", async (req, res) => {
@@ -108,23 +100,32 @@ app.post("/cancel_obfuscate", async (req, res) => {
 });
 
 app.post("/deobfuscate", async (req, res) => {
-  const {obfuscatedImageUrl, cipherUrl, encSecretKey, seller} = req.body;
+  let { obfuscatedImageUrl, cipherUrl, encSecretKey, seller } = req.body;
   let user = await prisma.user.findUnique({
     where: {
-      id: seller
-    }
+      id: seller,
+    },
   });
-  if (!user) return res.status(400).send({message: "User not found"});
+  if (!user) return res.status(400).send({ message: "User not found" });
   let response = await fetch(cipherUrl);
   const ciphertext = await response.text();
   response = await fetch(obfuscatedImageUrl);
   const blob = await response.blob();
   const obfuscatedImage = new Uint8Array(await blob.arrayBuffer());
-  const secretKey = decryptSecretKey(encSecretKey, user.priv_key!);
-  console.log(secretKey);
-  const deobfuscatedImage = await deobfuscate(obfuscatedImage, ciphertext, secretKey);
+  if(Array.isArray(encSecretKey)) encSecretKey = Buffer.from(encSecretKey).toString('hex');
+  console.log(encSecretKey, "TOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+  const secretKey = decryptSecretKeyBLS(
+    encSecretKey,
+    Uint8Array.from(Buffer.from(user.priv_key!, "hex"))
+  );
 
-  return res.send({deobfuscatedImage});
+  const deobfuscatedImage = await deobfuscate(
+    obfuscatedImage,
+    ciphertext,
+    secretKey
+  );
+
+  return res.send({ deobfuscatedImage });
 });
 
 app.listen(3000, () =>

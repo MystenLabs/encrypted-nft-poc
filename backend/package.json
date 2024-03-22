@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "npx ts-node server.ts"
+    "dev": "npx tsx server.ts"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +22,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.515.0",
+    "@noble/curves": "^1.4.0",
+    "@noble/hashes": "^1.4.0",
     "@prisma/client": "5.9.1",
     "cors": "^2.8.5",
     "eciesjs": "^0.4.6",
