@@ -36,29 +36,43 @@ const NFTPage = ({
     const resp = await fetch(backend + "transfer_to", {
       method: "POST",
       headers: { "Content-type": "application/json" },
-      body: JSON.stringify({ owner: account?.address!, recipient: recipient, encryptedMasterKey: secretKey}),
+      body: JSON.stringify({
+        owner: account?.address!,
+        recipient: recipient,
+        encryptedMasterKey: secretKey,
+      }),
     });
-    const { encryptedSecretKey } = await resp.json();
-    const tx = transferNFT(id, recipient, Array.from(Buffer.from(encryptedSecretKey, 'hex')), [1, 2, 3, 4]);
-    await signAndExecute(
-      {
-        transactionBlock: tx,
-        requestType: "WaitForLocalExecution",
-      },
-      {
-        onError: (error) => {
-          console.log(error);
-        },
-        onSuccess: () => {
-          console.log("Offer Success");
-        },
-      },
-    );
+    const {
+      encryptedSecretKey,
+      proof,
+      senderPublicKey,
+      recipientPublicKey,
+      prevEncMsk_Ephemeral,
+      prevEncMsk_Ciphertext,
+      newEncMsk_Ephemeral,
+      newEncMsk_Ciphertext,
+    } = await resp.json();
+    console.log(encryptedSecretKey, JSON.parse(proof));
+    console.log(senderPublicKey, recipientPublicKey, prevEncMsk_Ephemeral, prevEncMsk_Ciphertext, newEncMsk_Ephemeral, newEncMsk_Ciphertext)
+    // const tx = transferNFT(id, recipient, Array.from(Buffer.from(encryptedSecretKey, 'hex')), [1, 2, 3, 4]);
+    // await signAndExecute(
+    //   {
+    //     transactionBlock: tx,
+    //     requestType: "WaitForLocalExecution",
+    //   },
+    //   {
+    //     onError: (error) => {
+    //       console.log(error);
+    //     },
+    //     onSuccess: () => {
+    //       console.log("Offer Success");
+    //     },
+    //   },
+    // );
     close();
   };
 
   const onDeobfuscateClick = async () => {
-    console.log("TOOOYOOTO", secretKey, Array.isArray(secretKey));
     const response = await fetch(backend + "deobfuscate", {
       method: "POST",
       headers: { "Content-type": "application/json" },

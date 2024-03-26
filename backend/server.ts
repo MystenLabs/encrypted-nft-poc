@@ -5,17 +5,16 @@ import express from "express";
 import cors from "cors";
 import { prisma } from "./db";
 import {
-  generateKeypair,
   obfuscate,
   deobfuscate,
-  encryptSecretKey,
-  decryptSecretKey,
   encryptSecretKeyBLS,
   decryptSecretKeyBLS,
   generatePrivateKey,
-  generateSecretKey,
 } from "./images/obfuscate";
+import * as crypto from "crypto";
 import { uploadCiphertext, deleteItem, uploadImage } from "./images/bucket";
+import { enc } from "crypto-js";
+import { generateProof } from "./images/proof";
 
 const app = express();
 app.use(cors());
@@ -57,11 +56,47 @@ app.post("/transfer_to", async (req, res) => {
     encryptedMasterKey,
     Uint8Array.from(Buffer.from(ownerUser.priv_key!, "hex"))
   );
+  const encryptionRandomness = Uint8Array.from(crypto.randomBytes(8));
   const reEncrypted = encryptSecretKeyBLS(
     secretKey,
-    Uint8Array.from(Buffer.from(recipientUser.priv_key!, "hex"))
+    Uint8Array.from(Buffer.from(recipientUser.priv_key!, "hex")),
+    encryptionRandomness
   );
-  return res.send({ encryptedSecretKey: reEncrypted });
+  const {
+    s1,
+    s2,
+    u1,
+    u2,
+    v,
+    senderPublicKey,
+    recipientPublicKey,
+    prevEncMsk_Ephemeral,
+    prevEncMsk_Ciphertext,
+    newEncMsk_Ephemeral,
+    newEncMsk_Ciphertext
+  } = generateProof(
+    encryptedMasterKey,
+    reEncrypted,
+    Uint8Array.from(Buffer.from(ownerUser.priv_key!, "hex")),
+    Uint8Array.from(Buffer.from(recipientUser.priv_key!, "hex")),
+    encryptionRandomness
+  );
+  return res.send({
+    encryptedSecretKey: reEncrypted,
+    proof: JSON.stringify({
+      s1: s1.toString(16),
+      s2: s2.toString(16),
+      u1: u1.toHex(),
+      u2: u2.toHex(),
+      v: v.toHex(),
+    }),
+    senderPublicKey: Buffer.from(senderPublicKey).toString("hex"),
+    recipientPublicKey: Buffer.from(recipientPublicKey).toString("hex"),
+    prevEncMsk_Ephemeral: prevEncMsk_Ephemeral.toHex(),
+    prevEncMsk_Ciphertext: prevEncMsk_Ciphertext.toHex(),
+    newEncMsk_Ephemeral: newEncMsk_Ephemeral.toHex(),
+    newEncMsk_Ciphertext: newEncMsk_Ciphertext.toHex()
+  });
 });
 
 app.post("/obfuscate", async (req, res) => {
@@ -85,10 +120,11 @@ app.post("/obfuscate", async (req, res) => {
       },
     });
   }
-
+  const encryptionRandomness = Uint8Array.from(crypto.randomBytes(8));
   const encryptedSecretKey = encryptSecretKeyBLS(
     secretKey,
-    Uint8Array.from(Buffer.from(user.priv_key!, "hex"))
+    Uint8Array.from(Buffer.from(user.priv_key!, "hex")),
+    encryptionRandomness
   );
   const cipherUrl = await uploadCiphertext(ciphertext, imageName);
   await uploadImage(obfuscatedImage, imageName);
@@ -112,8 +148,8 @@ app.post("/deobfuscate", async (req, res) => {
   response = await fetch(obfuscatedImageUrl);
   const blob = await response.blob();
   const obfuscatedImage = new Uint8Array(await blob.arrayBuffer());
-  if(Array.isArray(encSecretKey)) encSecretKey = Buffer.from(encSecretKey).toString('hex');
-  console.log(encSecretKey, "TOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+  if (Array.isArray(encSecretKey))
+    encSecretKey = Buffer.from(encSecretKey).toString("hex");
   const secretKey = decryptSecretKeyBLS(
     encSecretKey,
     Uint8Array.from(Buffer.from(user.priv_key!, "hex"))
