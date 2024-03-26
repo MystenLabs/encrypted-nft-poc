@@ -20,7 +20,8 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
   const [tags, setTags] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [cipherURL, setCipherURL] = useState<string>("");
-  const [secretKey, setSecretKey] = useState<string>("");
+  const [secretKeyEphemeral, setSecretKeyEphemeral] = useState<string>("");
+  const [secretKeyCiphertext, setSecretKeyCiphertext] = useState<string>("");
   const { createNFT } = useMarket();
   const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
 
@@ -61,7 +62,8 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     }
     const data = await response.json();
     setIsBlurred(true);
-    setSecretKey(data.encryptedSecretKey);
+    setSecretKeyEphemeral(data.ephemeral);
+    setSecretKeyCiphertext(data.ciphertext);
     setCipherURL(data.cipherUrl);
     setImage(data.obfuscatedImage);
     // img.src = data.obfuscatedImage;
@@ -85,13 +87,14 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     img.src = image as string;
   }, [step, image]);
   
+  console.log(secretKeyEphemeral, secretKeyCiphertext, "YOOOOO");
   const finish = async () => {
     const tx = createNFT(
       name,
       cipherURL.replace("_ciphertext", ""),
       cipherURL,
-      Array.from(Buffer.from(secretKey, 'hex')),
-      [1,2,3,4],
+      secretKeyEphemeral,
+      secretKeyCiphertext,
       account?.address as string,
     );
 

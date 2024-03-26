@@ -4,7 +4,7 @@ import { createNetworkConfig } from "@mysten/dapp-kit";
 const { networkConfig, useNetworkVariable, useNetworkVariables } =
   createNetworkConfig({
     testnet: {
-      url: getFullnodeUrl("testnet"),
+      url: getFullnodeUrl("devnet"),
       variables: {
         counterPackageId: import.meta.env.VITE_PACKAGE_ID as string,
       },

@@ -9,6 +9,7 @@ import {
   deobfuscate,
   encryptSecretKeyBLS,
   decryptSecretKeyBLS,
+  serializeToHex,
   generatePrivateKey,
 } from "./images/obfuscate";
 import * as crypto from "crypto";
@@ -73,10 +74,10 @@ app.post("/transfer_to", async (req, res) => {
     prevEncMsk_Ephemeral,
     prevEncMsk_Ciphertext,
     newEncMsk_Ephemeral,
-    newEncMsk_Ciphertext
+    newEncMsk_Ciphertext,
   } = generateProof(
     encryptedMasterKey,
-    reEncrypted,
+    serializeToHex(reEncrypted),
     Uint8Array.from(Buffer.from(ownerUser.priv_key!, "hex")),
     Uint8Array.from(Buffer.from(recipientUser.priv_key!, "hex")),
     encryptionRandomness
@@ -95,7 +96,7 @@ app.post("/transfer_to", async (req, res) => {
     prevEncMsk_Ephemeral: prevEncMsk_Ephemeral.toHex(),
     prevEncMsk_Ciphertext: prevEncMsk_Ciphertext.toHex(),
     newEncMsk_Ephemeral: newEncMsk_Ephemeral.toHex(),
-    newEncMsk_Ciphertext: newEncMsk_Ciphertext.toHex()
+    newEncMsk_Ciphertext: newEncMsk_Ciphertext.toHex(),
   });
 });
 
@@ -128,8 +129,12 @@ app.post("/obfuscate", async (req, res) => {
   );
   const cipherUrl = await uploadCiphertext(ciphertext, imageName);
   await uploadImage(obfuscatedImage, imageName);
-  console.log(cipherUrl);
-  return res.send({ obfuscatedImage, cipherUrl, encryptedSecretKey });
+  return res.send({
+    obfuscatedImage,
+    cipherUrl,
+    ephemeral: encryptedSecretKey.ephemeral.toHex(),
+    ciphertext: encryptedSecretKey.cipher.toHex(),
+  });
 });
 app.post("/cancel_obfuscate", async (req, res) => {
   await deleteItem(req.body.cipherPath);

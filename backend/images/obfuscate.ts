@@ -87,7 +87,7 @@ export const encryptSecretKeyBLS = (secretKey: Uint8Array, privateKey: Uint8Arra
   const cipher_ = publicKey.multiply(randomBytes);
   const cipher = cipher_.add(bls12_381.G1.ProjectivePoint.fromHex(Buffer.from(secretKey).toString('hex')));
 
-  return serializeToHex({ephemeral, cipher});
+  return {ephemeral, cipher};
 }
 
 export const decryptSecretKeyBLS = (hexString: string, privateKey: Uint8Array) => {
@@ -96,7 +96,7 @@ export const decryptSecretKeyBLS = (hexString: string, privateKey: Uint8Array) =
   return cipher.subtract(dec).toRawBytes();
 }
 
-const serializeToHex = ({ephemeral, cipher}: {ephemeral: ProjPointType<bigint>, cipher: ProjPointType<bigint>}) => {
+export const serializeToHex = ({ephemeral, cipher}: {ephemeral: ProjPointType<bigint>, cipher: ProjPointType<bigint>}) => {
   const toSerialize = {ephemeral: ephemeral.toHex(), cipher: cipher.toHex()};
   const jsonString = JSON.stringify(toSerialize);
   return Buffer.from(jsonString).toString('hex');

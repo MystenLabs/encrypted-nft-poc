@@ -33,20 +33,21 @@ export const useMarket = () => {
     name: string,
     image_url: string,
     cipher_url: string,
-    encryptedMasterKey: number[],
-    proof: number[],
+    ephemeral: string,
+    ciphertext: string,
     user: string
   ) => {
     const tx = new TransactionBlock();
-
+    
+    console.log(Array.from(Buffer.from(ephemeral, 'hex')), Array.from(Buffer.from(ciphertext, 'hex')));
     const nft = tx.moveCall({
       target: `${pkg}::private_nft::new`,
       arguments: [
         tx.pure.string(name),
         tx.pure.string(image_url),
         tx.pure.string(cipher_url),
-        tx.pure(encryptedMasterKey),
-        tx.pure(proof),
+        tx.pure(Array.from(Buffer.from(ephemeral, 'hex'))),
+        tx.pure(Array.from(Buffer.from(ciphertext, 'hex'))),
       ],
     });
 
