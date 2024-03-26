@@ -1,5 +1,4 @@
 module package::private_nft {
-    use sui::bcs;
     use sui::bls12381;
     use sui::hash::blake2b256;
     use sui::group_ops::{Self, Element};
@@ -35,6 +34,23 @@ module package::private_nft {
     struct ElGamalEncryption has drop, copy, store {
         ephemeral: Element<bls12381::G1>,
         ciphertext: Element<bls12381::G1>,
+    }
+
+    public fun woah() {
+        let ephemeral: vector<u8> = vector[
+    149, 92, 249, 196, 152, 204, 15, 43, 124, 187, 26, 255, 19, 62, 237, 210,
+    20, 137, 47, 78, 99, 150, 42, 27, 114, 205, 202, 251, 52, 90, 91, 113, 102,
+    38, 118, 214, 41, 194, 248, 75, 4, 251, 193, 241, 118, 168, 15, 226
+  ];
+//         let ciphertext: vector<u8> = vector[
+//     132, 73, 247, 101, 81, 65, 13, 216, 81, 254, 96, 38, 44, 161, 140, 115, 90,
+//     168, 233, 117, 31, 251, 34, 195, 42, 183, 70, 247, 61, 255, 156, 120, 165,
+//     21, 227, 107, 197, 247, 183, 64, 252, 148, 246, 43, 66, 249, 174, 73,
+//   ];
+//   vector::reverse(&mut ephemeral);
+//   vector::reverse(&mut ciphertext);
+  bls12381::g1_from_bytes(&ephemeral);
+    // bls12381::g1_from_bytes(&ciphertext);
     }
 
 
@@ -170,5 +186,42 @@ module package::private_nft {
         let len = vector::length(&hash);
         *vector::borrow_mut(&mut hash, len-1) = 0;
         bls12381::scalar_from_bytes(&hash)
+    }
+
+
+    #[test]
+    public fun test_new() {
+        let user = @0x123;
+
+        let name = std::string::utf8(b"Cool NFT");
+        let image_url = std::string::utf8(b"https://coolnft.com/image.jpg");
+        let ciphertext_url = std::string::utf8(b"https://coolnft.com/ciphertext.jpg");
+        let ephemeral: vector<u8> = vector[
+    149, 92, 249, 196, 152, 204, 15, 43, 124, 187, 26, 255, 19, 62, 237, 210,
+    20, 137, 47, 78, 99, 150, 42, 27, 114, 205, 202, 251, 52, 90, 91, 113, 102,
+    38, 118, 214, 41, 194, 248, 75, 4, 251, 193, 241, 118, 168, 15, 226
+  ];
+        let ciphertext: vector<u8> = vector[
+    132, 73, 247, 101, 81, 65, 13, 216, 81, 254, 96, 38, 44, 161, 140, 115, 90,
+    168, 233, 117, 31, 251, 34, 195, 42, 183, 70, 247, 61, 255, 156, 120, 165,
+    21, 227, 107, 197, 247, 183, 64, 252, 148, 246, 43, 66, 249, 174, 73,
+  ];
+  bls12381::g1_from_bytes(&ephemeral);
+    bls12381::g1_from_bytes(&ciphertext);
+        let scenario = sui::test_scenario::begin(user);
+        {
+            let nft = new(
+                name,
+                image_url,
+                ciphertext_url,
+                ephemeral,
+                ciphertext,
+                sui::test_scenario::ctx(&mut scenario)
+            );
+            std::debug::print(&nft);
+            transfer::public_transfer(nft, user);
+        };
+        sui::test_scenario::end(scenario);
+
     }
 }
