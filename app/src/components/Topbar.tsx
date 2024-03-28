@@ -23,7 +23,7 @@ export const TopBar = ({onStart}: TopBarProps) => {
           borderBottom: "1px solid #EAECEF",
         }}
       >
-        <Flex direction="row" justify="start">
+        <Flex direction="row" justify="start" onClick={() => {window.location.replace("/")}}>
           <img
             src={logo}
             alt="Mysten labs"

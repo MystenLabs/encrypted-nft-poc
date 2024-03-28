@@ -147,7 +147,7 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     return (
       <Flex direction={"column"} align={"end"}>
         <Flex direction={"row"}>
-          <Flex direction={"column"} style={{ width: "100%" }}>
+          <Flex direction={"column"} style={{ width: "100%", padding: "0px 10px" }}>
             <Heading size="5">Enter NFT Metadata</Heading>
             <Flex direction="column">
               <Flex
@@ -204,6 +204,7 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
             </Flex>
           </Flex>
           <Flex direction={"column"}>
+            <Box style={{padding: "0px 32px"}}>
             <p>Protect your NFT</p>
             <Box>
               <Button
@@ -212,6 +213,7 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
               >
                 Obfuscate
               </Button>
+            </Box>
             </Box>
             <Box
               style={{
@@ -239,12 +241,12 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     return (
       <Flex
         direction={"column"}
-        style={{ width: "80%", backgroundColor: "white" }}
+        style={{ width: "50%", backgroundColor: "white" }}
       >
         <Box>
           <Heading size={"5"}> NFT Summary</Heading>
         </Box>
-        <Flex direction={"row"} justify={"between"} gap="6">
+        <Flex direction={"row"} justify="start" gap="1">
           <Box>
             <img
               src={image!}
