@@ -93,7 +93,8 @@ export const PersonalSpace = () => {
           image={nft.image_url}
           owner={nft.seller}
           cipherURL={nft.ciphertext_url}
-          secretKey={nft.encrypted_master_key}
+          ephemeral={nft.ephemeral}
+          ciphertext={nft.ciphertext}
           close={closeNFTPage}
         />
       </>

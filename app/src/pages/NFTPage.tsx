@@ -12,7 +12,8 @@ interface NFTPageProps {
   image: string;
   owner: string;
   cipherURL: string;
-  secretKey: string;
+  ephemeral: number[];
+  ciphertext: number[];
   close: () => void;
 }
 
@@ -22,7 +23,8 @@ const NFTPage = ({
   image,
   owner,
   cipherURL,
-  secretKey,
+  ephemeral,
+  ciphertext,
   close,
 }: NFTPageProps) => {
   const [recipient, setRecipient] = useState("");
@@ -39,36 +41,49 @@ const NFTPage = ({
       body: JSON.stringify({
         owner: account?.address!,
         recipient: recipient,
-        encryptedMasterKey: secretKey,
+        ephemeral: Buffer.from(ephemeral).toString("hex"),
+        ciphertext: Buffer.from(ciphertext).toString("hex"),
       }),
     });
     const {
-      encryptedSecretKey,
       proof,
       senderPublicKey,
       recipientPublicKey,
-      prevEncMsk_Ephemeral,
-      prevEncMsk_Ciphertext,
-      newEncMsk_Ephemeral,
-      newEncMsk_Ciphertext,
+      prevEphemeral,
+      prevCiphertext,
+      newEphemeral,
+      newCiphertext,
     } = await resp.json();
-    console.log(encryptedSecretKey, JSON.parse(proof));
-    console.log(senderPublicKey, recipientPublicKey, prevEncMsk_Ephemeral, prevEncMsk_Ciphertext, newEncMsk_Ephemeral, newEncMsk_Ciphertext)
-    // const tx = transferNFT(id, recipient, Array.from(Buffer.from(encryptedSecretKey, 'hex')), [1, 2, 3, 4]);
-    // await signAndExecute(
-    //   {
-    //     transactionBlock: tx,
-    //     requestType: "WaitForLocalExecution",
-    //   },
-    //   {
-    //     onError: (error) => {
-    //       console.log(error);
-    //     },
-    //     onSuccess: () => {
-    //       console.log("Offer Success");
-    //     },
-    //   },
-    // );
+    const parsedProof = JSON.parse(proof);
+    const tx = transferNFT(
+      id,
+      recipient,
+      Array.from(Buffer.from(senderPublicKey, "hex")),
+      Array.from(Buffer.from(recipientPublicKey, "hex")),
+      Array.from(Buffer.from(prevEphemeral, "hex")),
+      Array.from(Buffer.from(prevCiphertext, "hex")),
+      Array.from(Buffer.from(newEphemeral, "hex")),
+      Array.from(Buffer.from(newCiphertext, "hex")),
+      Array.from(Buffer.from(parsedProof.s1, "hex")),
+      Array.from(Buffer.from(parsedProof.s2, "hex")),
+      Array.from(Buffer.from(parsedProof.u1, "hex")),
+      Array.from(Buffer.from(parsedProof.u2, "hex")),
+      Array.from(Buffer.from(parsedProof.v, "hex")),
+    );
+    await signAndExecute(
+      {
+        transactionBlock: tx,
+        requestType: "WaitForLocalExecution",
+      },
+      {
+        onError: (error) => {
+          console.log(error);
+        },
+        onSuccess: () => {
+          console.log("Offer Success");
+        },
+      },
+    );
     close();
   };
 
@@ -79,7 +94,8 @@ const NFTPage = ({
       body: JSON.stringify({
         obfuscatedImageUrl: cipherURL.replace("_ciphertext", ""),
         cipherUrl: cipherURL,
-        encSecretKey: secretKey,
+        ephemeral: Buffer.from(ephemeral).toString("hex"),
+        ciphertext: Buffer.from(ciphertext).toString("hex"),
         seller: account?.address,
       }),
     });

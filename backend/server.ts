@@ -16,6 +16,7 @@ import * as crypto from "crypto";
 import { uploadCiphertext, deleteItem, uploadImage } from "./images/bucket";
 import { enc } from "crypto-js";
 import { generateProof } from "./images/proof";
+import { bls12_381 } from "@noble/curves/bls12-381";
 
 const app = express();
 app.use(cors());
@@ -32,7 +33,7 @@ app.get("/users", async (req, res) => {
 });
 
 app.post("/transfer_to", async (req, res) => {
-  const { owner, recipient, encryptedMasterKey } = req.body;
+  const { owner, recipient, ephemeral, ciphertext } = req.body;
 
   let ownerUser = await prisma.user.findUnique({
     where: {
@@ -54,7 +55,8 @@ app.post("/transfer_to", async (req, res) => {
     });
   }
   const secretKey = decryptSecretKeyBLS(
-    encryptedMasterKey,
+    ephemeral,
+    ciphertext,
     Uint8Array.from(Buffer.from(ownerUser.priv_key!, "hex"))
   );
   const encryptionRandomness = Uint8Array.from(crypto.randomBytes(8));
@@ -71,19 +73,21 @@ app.post("/transfer_to", async (req, res) => {
     v,
     senderPublicKey,
     recipientPublicKey,
-    prevEncMsk_Ephemeral,
-    prevEncMsk_Ciphertext,
-    newEncMsk_Ephemeral,
-    newEncMsk_Ciphertext,
+    prevEphemeral,
+    prevCiphertext,
+    newEphemeral,
+    newCiphertext,
   } = generateProof(
-    encryptedMasterKey,
-    serializeToHex(reEncrypted),
+    bls12_381.G1.ProjectivePoint.fromHex(ephemeral),
+    bls12_381.G1.ProjectivePoint.fromHex(ciphertext),
+    reEncrypted.ephemeral,
+    reEncrypted.cipher,
     Uint8Array.from(Buffer.from(ownerUser.priv_key!, "hex")),
     Uint8Array.from(Buffer.from(recipientUser.priv_key!, "hex")),
     encryptionRandomness
   );
+  
   return res.send({
-    encryptedSecretKey: reEncrypted,
     proof: JSON.stringify({
       s1: s1.toString(16),
       s2: s2.toString(16),
@@ -93,10 +97,10 @@ app.post("/transfer_to", async (req, res) => {
     }),
     senderPublicKey: Buffer.from(senderPublicKey).toString("hex"),
     recipientPublicKey: Buffer.from(recipientPublicKey).toString("hex"),
-    prevEncMsk_Ephemeral: prevEncMsk_Ephemeral.toHex(),
-    prevEncMsk_Ciphertext: prevEncMsk_Ciphertext.toHex(),
-    newEncMsk_Ephemeral: newEncMsk_Ephemeral.toHex(),
-    newEncMsk_Ciphertext: newEncMsk_Ciphertext.toHex(),
+    prevEphemeral: prevEphemeral.toHex(),
+    prevCiphertext: prevCiphertext.toHex(),
+    newEphemeral: newEphemeral.toHex(),
+    newCiphertext: newCiphertext.toHex(),
   });
 });
 
@@ -141,7 +145,7 @@ app.post("/cancel_obfuscate", async (req, res) => {
 });
 
 app.post("/deobfuscate", async (req, res) => {
-  let { obfuscatedImageUrl, cipherUrl, encSecretKey, seller } = req.body;
+  let { obfuscatedImageUrl, cipherUrl, ephemeral, ciphertext, seller } = req.body;
   let user = await prisma.user.findUnique({
     where: {
       id: seller,
@@ -149,20 +153,19 @@ app.post("/deobfuscate", async (req, res) => {
   });
   if (!user) return res.status(400).send({ message: "User not found" });
   let response = await fetch(cipherUrl);
-  const ciphertext = await response.text();
+  const ciphertextImg = await response.text();
   response = await fetch(obfuscatedImageUrl);
   const blob = await response.blob();
   const obfuscatedImage = new Uint8Array(await blob.arrayBuffer());
-  if (Array.isArray(encSecretKey))
-    encSecretKey = Buffer.from(encSecretKey).toString("hex");
   const secretKey = decryptSecretKeyBLS(
-    encSecretKey,
+    ephemeral,
+    ciphertext,
     Uint8Array.from(Buffer.from(user.priv_key!, "hex"))
   );
 
   const deobfuscatedImage = await deobfuscate(
     obfuscatedImage,
-    ciphertext,
+    ciphertextImg,
     secretKey
   );
 

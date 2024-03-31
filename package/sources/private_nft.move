@@ -36,24 +36,6 @@ module package::private_nft {
         ciphertext: Element<bls12381::G1>,
     }
 
-    public fun woah() {
-        let ephemeral: vector<u8> = vector[
-    149, 92, 249, 196, 152, 204, 15, 43, 124, 187, 26, 255, 19, 62, 237, 210,
-    20, 137, 47, 78, 99, 150, 42, 27, 114, 205, 202, 251, 52, 90, 91, 113, 102,
-    38, 118, 214, 41, 194, 248, 75, 4, 251, 193, 241, 118, 168, 15, 226
-  ];
-//         let ciphertext: vector<u8> = vector[
-//     132, 73, 247, 101, 81, 65, 13, 216, 81, 254, 96, 38, 44, 161, 140, 115, 90,
-//     168, 233, 117, 31, 251, 34, 195, 42, 183, 70, 247, 61, 255, 156, 120, 165,
-//     21, 227, 107, 197, 247, 183, 64, 252, 148, 246, 43, 66, 249, 174, 73,
-//   ];
-//   vector::reverse(&mut ephemeral);
-//   vector::reverse(&mut ciphertext);
-  bls12381::g1_from_bytes(&ephemeral);
-    // bls12381::g1_from_bytes(&ciphertext);
-    }
-
-
     public fun new(
         name: String,
         image_url: String,
@@ -181,47 +163,69 @@ module package::private_nft {
         vector::append(&mut to_hash, *group_ops::bytes(a2));
         vector::append(&mut to_hash, *group_ops::bytes(a3));
         let hash = blake2b256(&to_hash);
-        
+
         // Make sure we are in the right field. Note that for security we only need the lower 128 bits.
-        let len = vector::length(&hash);
-        *vector::borrow_mut(&mut hash, len-1) = 0;
+        // let len = vector::length(&hash);
+        *vector::borrow_mut(&mut hash, 0) = 0;
         bls12381::scalar_from_bytes(&hash)
     }
 
 
     #[test]
     public fun test_new() {
+        use sui::test_scenario as ts;
         let user = @0x123;
+        let recipient: address = @0x234;
 
         let name = std::string::utf8(b"Cool NFT");
         let image_url = std::string::utf8(b"https://coolnft.com/image.jpg");
         let ciphertext_url = std::string::utf8(b"https://coolnft.com/ciphertext.jpg");
-        let ephemeral: vector<u8> = vector[
-    149, 92, 249, 196, 152, 204, 15, 43, 124, 187, 26, 255, 19, 62, 237, 210,
-    20, 137, 47, 78, 99, 150, 42, 27, 114, 205, 202, 251, 52, 90, 91, 113, 102,
-    38, 118, 214, 41, 194, 248, 75, 4, 251, 193, 241, 118, 168, 15, 226
-  ];
-        let ciphertext: vector<u8> = vector[
-    132, 73, 247, 101, 81, 65, 13, 216, 81, 254, 96, 38, 44, 161, 140, 115, 90,
-    168, 233, 117, 31, 251, 34, 195, 42, 183, 70, 247, 61, 255, 156, 120, 165,
-    21, 227, 107, 197, 247, 183, 64, 252, 148, 246, 43, 66, 249, 174, 73,
-  ];
-  bls12381::g1_from_bytes(&ephemeral);
-    bls12381::g1_from_bytes(&ciphertext);
-        let scenario = sui::test_scenario::begin(user);
+        let sender_pub_key: vector<u8> = x"8f6823e107967915032bb701bfbf2c6f1f5fe4d584d9be1db7a0010f2b3510eac3c7176630a25b77d9e0a350a2f2a728";
+        let receiver_pub_key: vector<u8> = x"8463affac6a1eb9b22caabfd5d2cefeacdf8a84175a588d3ee19f9ad4f53eeed7f5cfe464505792db811ea68cebaf136";
+        let prevEph: vector<u8> = x"8cfca733533a0a3421cd93579a57f6ab68ead466105d9a25124bf8a5998124ebf1e94e8694e2c9bbb01b1b29fe7c2088";
+        let prevCiph: vector<u8> = x"b6495bead5ac0759fd77088e7665c0ca1dc02ce866f6971bbe236e95a6533b46a2896bb282f70e5a29234ed0e70154ac";
+        let newEph: vector<u8> = x"98dc2c7b9ea00fce02bd0abcc83523ce5aab00b0fe671bdab392649fddac7a55212181be3bf9c71d35a7745af509c8c5";
+        let newCiph: vector<u8> = x"8990946a8bf81675185640e699d49d70db2fbcd094f7ab89d8c89d67d897937acb8bf759f7c58960a83eb8a60efc4984";
+        let s1: vector<u8> = x"2fb95792192b8357e4304233474c516798526fd0d187b36c90af83e87ef6056f";
+        let s2: vector<u8> = x"402dd9ec755e8e8d4f4ba57d5419f5c6b5791b359ea9e96fb5dbf653a58e5f52";
+        let u1: vector<u8> = x"a9b484d6927e3a758d37464d332b0807d97029d1e158e9c9cc4a8bf28228183c8d183efc9d686f5c96535e4c39e401d6";
+        let u2: vector<u8> = x"a1d98ef7dc3ab15ef1a344c06b2840d8e554fdef7364f80ad462b783e060ebe1f92d99f317e8a0cac838f00b1ffd40f1";
+        let v: vector<u8> = x"8975a7437dda0bf41a095090884954b0f9f93cf304f2d33a20b90d8122e294f4596b7f14428df0d4a82b27f4d63bbb5f";
+        let scenario = ts::begin(user);
         {
             let nft = new(
                 name,
                 image_url,
                 ciphertext_url,
-                ephemeral,
-                ciphertext,
-                sui::test_scenario::ctx(&mut scenario)
+                prevEph,
+                prevCiph,
+                ts::ctx(&mut scenario)
             );
-            std::debug::print(&nft);
+
             transfer::public_transfer(nft, user);
         };
-        sui::test_scenario::end(scenario);
+        ts::next_tx(&mut scenario, user);
+        {
+            let nft = ts::take_from_sender<EncryptedNFT>(&scenario);
+            transfer_to(
+                nft,
+                recipient,
+                sender_pub_key,
+                receiver_pub_key,
+                prevEph,
+                prevCiph,
+                newEph,
+                newCiph,
+                s1,
+                s2,
+                u1,
+                u2,
+                v,
+                ts::ctx(&mut scenario)
+            );
+
+        };
+        ts::end(scenario);
 
     }
 }

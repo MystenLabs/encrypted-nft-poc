@@ -90,8 +90,9 @@ export const encryptSecretKeyBLS = (secretKey: Uint8Array, privateKey: Uint8Arra
   return {ephemeral, cipher};
 }
 
-export const decryptSecretKeyBLS = (hexString: string, privateKey: Uint8Array) => {
-  const {ephemeral, cipher} = desirializeFromHex(hexString);
+export const decryptSecretKeyBLS = (ephemeralHex: string, ciphertextHex: string, privateKey: Uint8Array) => {
+  const ephemeral = bls12_381.G1.ProjectivePoint.fromHex(ephemeralHex);
+  const cipher = bls12_381.G1.ProjectivePoint.fromHex(ciphertextHex);
   const dec = ephemeral.multiply(bls12_381.G1.normPrivateKeyToScalar(privateKey));
   return cipher.subtract(dec).toRawBytes();
 }

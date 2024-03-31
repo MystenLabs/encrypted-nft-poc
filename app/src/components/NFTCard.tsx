@@ -15,14 +15,10 @@ interface NFTCardProps {
 const NFTCard = ({
   image,
   name,
-  owner,
   index,
   openNFTPage,
 }: NFTCardProps) => {
-  // const { buyOffer, acceptOffer } = useMarket();
-  // const { mutate: signAndExecute } = useSignAndExecuteTransactionBlock();
 
-  const account = useCurrentAccount();
   const clicked = () => {
     openNFTPage(index);
   };

@@ -87,7 +87,6 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     img.src = image as string;
   }, [step, image]);
   
-  console.log(secretKeyEphemeral, secretKeyCiphertext, "YOOOOO");
   const finish = async () => {
     const tx = createNFT(
       name,

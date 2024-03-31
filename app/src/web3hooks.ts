@@ -21,12 +21,23 @@ export const useMarket = () => {
         StructType: `${pkg}::private_nft::EncryptedNFT`,
       }
     });
-    console.log(response);
-    return response.data.map((item: any) => {
+
+    const nfts = response.data.map((item: any) => {
       const ret = item.data?.content.fields;
       ret.id = ret.id.id;
+      ret.ephemeral = ret.encrypted_master_key.fields.ephemeral.fields.bytes;
+      ret.ciphertext = ret.encrypted_master_key.fields.ciphertext.fields.bytes;
       return ret;
     });
+
+    // nfts.forEach((nft: any) => {
+    //   const ephemeral = nft.encryptedMasterKey.fields.ephemeral.fields.bytes;
+    //   const ciphertext = nft.encryptedMasterKey.fields.ciphertext.fields.bytes;
+    //   nft.ephemeral = ephemeral;
+    //   nft.ciphertext = ciphertext;
+    // });
+    console.log(nfts, "looo");
+    return nfts;
   };
 
   const createNFT = (
@@ -56,12 +67,40 @@ export const useMarket = () => {
     return tx;
   };
 
-  const transferNFT = (nft: string, to: string, encryptedMasterKey: number[], proof: number[]) => {
+  const transferNFT = (
+    nft: string,
+    to: string,
+    senderPublicKey: number[],
+    receiverPublicKey: number[],
+    prevEphemeral: number[],
+    prevCiphertext: number[],
+    newEphemeral: number[],
+    newCiphertext: number[],
+    proof_s1: number[],
+    proof_s2: number[],
+    proof_u1: number[],
+    proof_u2: number[],
+    proof_v: number[]
+  ) => {
     const tx = new TransactionBlock();
 
     tx.moveCall({
       target: `${pkg}::private_nft::transfer_to`,
-      arguments: [tx.object(nft), tx.pure.address(to), tx.pure(encryptedMasterKey), tx.pure(proof)],
+      arguments: [
+        tx.object(nft),
+        tx.pure.address(to),
+        tx.pure(senderPublicKey, "vector<u8>"),
+        tx.pure(receiverPublicKey, "vector<u8>"),
+        tx.pure(prevEphemeral, "vector<u8>"),
+        tx.pure(prevCiphertext, "vector<u8>"),
+        tx.pure(newEphemeral, "vector<u8>"),
+        tx.pure(newCiphertext, "vector<u8>"),
+        tx.pure(proof_s1, "vector<u8>"),
+        tx.pure(proof_s2, "vector<u8>"),
+        tx.pure(proof_u1, "vector<u8>"),
+        tx.pure(proof_u2, "vector<u8>"),
+        tx.pure(proof_v, "vector<u8>"),
+      ],
     });
 
     return tx;
