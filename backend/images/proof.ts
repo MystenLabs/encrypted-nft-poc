@@ -2,7 +2,7 @@ import { bls12_381 } from "@noble/curves/bls12-381";
 import { ProjPointType } from "@noble/curves/abstract/weierstrass";
 import { blake2b } from "@noble/hashes/blake2b";
 import { generatePrivateKey } from "./obfuscate";
-import * as crypto from "crypto";
+
 
 const fiatShamirChallenge = (
   senderPublicKey: Uint8Array,

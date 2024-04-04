@@ -15,6 +15,7 @@ interface ListBotProps {
 
 export const ListBot = ({ step, goNext }: ListBotProps) => {
   const [image, setImage] = useState<string | null>(null);
+  const [initialImage, setInitialImage] = useState<string | null>(null);
   const [isBlurred, setIsBlurred] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
   const [tags, setTags] = useState<string>("");
@@ -35,12 +36,13 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         setImage(e.target?.result as string); // Set the image source to display it
+        setInitialImage(e.target?.result as string);
       };
       reader.readAsDataURL(files[0]);
     }
   }, []);
 
-  const onObfuscateClick = async () => {
+  const onObfuscateClick = async (type: string) => {
     // setIsBlurred(!isBlurred);
     // const canvas: any = canvasRef.current;
     // const context = canvas.getContext("2d");
@@ -48,9 +50,10 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
       method: "POST",
       headers: { "Content-type": "application/json" },
       body: JSON.stringify({
-        image,
+        image: initialImage,
         seller: account?.address,
         imageName: name.replace(/ /g, "_"),
+        type,
       }),
     });
     if (!response.ok) {
@@ -58,7 +61,6 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
         "Failed to obfuscate image with error:",
         response.statusText,
       );
-
     }
     const data = await response.json();
     setIsBlurred(true);
@@ -68,8 +70,6 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     setImage(data.obfuscatedImage);
     // img.src = data.obfuscatedImage;
   };
-
-  
 
   useEffect(() => {
     if (canvasRef.current === null) {
@@ -86,7 +86,7 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     };
     img.src = image as string;
   }, [step, image]);
-  
+
   const finish = async () => {
     const tx = createNFT(
       name,
@@ -146,7 +146,10 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     return (
       <Flex direction={"column"} align={"end"}>
         <Flex direction={"row"}>
-          <Flex direction={"column"} style={{ width: "100%", padding: "0px 10px" }}>
+          <Flex
+            direction={"column"}
+            style={{ width: "100%", padding: "0px 10px" }}
+          >
             <Heading size="5">Enter NFT Metadata</Heading>
             <Flex direction="column">
               <Flex
@@ -202,17 +205,35 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
               </Flex>
             </Flex>
           </Flex>
-          <Flex direction={"column"}>
-            <Box style={{padding: "0px 32px"}}>
-            <p>Protect your NFT</p>
-            <Box>
-              <Button
-                disabled={name === "" ? true : false}
-                onClick={onObfuscateClick}
-              >
-                Obfuscate
-              </Button>
-            </Box>
+          <Flex direction={"column"} justify={"between"}>
+            <Box style={{ padding: "0px 32px", gap: "2px"}}>
+              <p>Protect your NFT</p>
+              <Flex direction={"row"} justify={"start"} gap={"2"}>
+                <Button
+                  disabled={name === "" ? true : false}
+                  onClick={() => {
+                    onObfuscateClick("x");
+                  }}
+                >
+                  X Pattern
+                </Button>
+                <Button
+                  disabled={name === "" ? true : false}
+                  onClick={() => {
+                    onObfuscateClick("blur");
+                  }}
+                >
+                  Blur
+                </Button>
+                <Button
+                  disabled={name === "" ? true : false}
+                  onClick={() => {
+                    onObfuscateClick("random");
+                  }}
+                >
+                  Random
+                </Button>
+              </Flex>
             </Box>
             <Box
               style={{
@@ -240,7 +261,7 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
     return (
       <Flex
         direction={"column"}
-        style={{ width: "50%", backgroundColor: "white" }}
+        style={{ width: "70%", backgroundColor: "white" }}
       >
         <Box>
           <Heading size={"5"}> NFT Summary</Heading>
@@ -336,7 +357,11 @@ export const ListBot = ({ step, goNext }: ListBotProps) => {
           </Flex>
         </Flex>
         <Button
-          style={{ backgroundColor: "#F50032", width: "20%", marginLeft: "auto"}}
+          style={{
+            backgroundColor: "#F50032",
+            width: "20%",
+            marginLeft: "auto",
+          }}
           onClick={finish}
         >
           Mint NFT <img src={RightArrow} />

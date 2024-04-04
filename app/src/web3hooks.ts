@@ -36,7 +36,6 @@ export const useMarket = () => {
     //   nft.ephemeral = ephemeral;
     //   nft.ciphertext = ciphertext;
     // });
-    console.log(nfts, "looo");
     return nfts;
   };
 

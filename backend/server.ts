@@ -105,10 +105,10 @@ app.post("/transfer_to", async (req, res) => {
 });
 
 app.post("/obfuscate", async (req, res) => {
-  const { image, seller, imageName } = req.body;
+  const { image, seller, imageName, type } = req.body;
   const { obfuscatedImage, ciphertext, secretKey } = await obfuscate(
     image,
-    "uniform"
+    type
   );
 
   let user = await prisma.user.findUnique({

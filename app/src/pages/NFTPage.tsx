@@ -54,6 +54,7 @@ const NFTPage = ({
       newEphemeral,
       newCiphertext,
     } = await resp.json();
+
     const parsedProof = JSON.parse(proof);
     const tx = transferNFT(
       id,
@@ -117,7 +118,6 @@ const NFTPage = ({
       </Flex>
       <Flex direction="row">
         <img src={image} alt={name} />
-        {deobfuscatedImage && <img src={deobfuscatedImage} alt={name} />}
         <Flex direction="column">
           <h3>{name}</h3>
           <h3>{owner}</h3>
@@ -146,6 +146,9 @@ const NFTPage = ({
           </Box>
         </Flex>
       </Flex>
+      <Box>
+      {deobfuscatedImage && <img src={deobfuscatedImage} alt={name}  style={{height: "auto"}}/>}
+      </Box>
     </Flex>
   );
 };
