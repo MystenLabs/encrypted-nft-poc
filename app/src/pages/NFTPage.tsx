@@ -122,7 +122,7 @@ const NFTPage = ({
           <h3>{name}</h3>
           <h3>{owner}</h3>
           <Link
-            href={`https://suiexplorer.com/object/${id}?network=${import.meta.env.VITE_ACTIVE_NETWORK}`}
+            href={`https://explorer.polymedia.app/object/${id}?network=${import.meta.env.VITE_ACTIVE_NETWORK}`}
             target="_blank"
             rel="noopener noreferrer"
           >
