@@ -49,7 +49,6 @@ export const useMarket = () => {
   ) => {
     const tx = new TransactionBlock();
     
-    console.log(Array.from(Buffer.from(ephemeral, 'hex')), Array.from(Buffer.from(ciphertext, 'hex')));
     const nft = tx.moveCall({
       target: `${pkg}::private_nft::new`,
       arguments: [

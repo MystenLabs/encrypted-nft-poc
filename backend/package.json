@@ -26,8 +26,10 @@
     "@noble/hashes": "^1.4.0",
     "@prisma/client": "5.9.1",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "eciesjs": "^0.4.6",
     "express": "^4.18.2",
-    "image-js": "^0.35.5"
+    "image-js": "^0.35.5",
+    "tsx": "^4.7.3"
   }
 }

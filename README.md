@@ -1,4 +1,4 @@
-# Encrypted NFT marketplace
+# Encrypted NFT Demo
 
 This dApp was created using `@mysten/create-dapp` that sets up a simple React
 Client dApp using the following tools:
@@ -58,50 +58,32 @@ curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
 
 ### Publishing the move package
 
-The move code for this template is located in the `move` directory. To publish
-it, you can enter the parent directory of `counter` and publish it with the Sui CLI:
+The move code for this template is located in the `package` directory. To publish
+it, it is suggested to navigate to `app/publish/` and run `./publish.sh` in your console.
+This will create an `.env` file in the app with the package id and the network you published to.
+Sui CLI is a pre-requisite for this to function.
 
-```bash
-sui client publish --gas-budget 100000000 counter
-```
+After you ran the script edit the `.env` that was created and add the backend address that by
+default is set to `http://localhost:3000`. This can be changed in `backend/server.ts#175` by modifying
+the number after `app.listen(3000 ...)`.
 
-In the output there will be an object with a `"packageId"` property. You'll want
-to save that package ID to the `src/constants.ts` file as `PACKAGE_ID`:
+### Running the demo
+This project has a backend, a frontend and a move contract that can be found respectively in:
+`app/`, `backend/` and `package/`.
 
-```ts
-export const DEVNET_COUNTER_PACKAGE_ID = "<YOUR_PACKAGE_ID>";
-```
+For the backend to work access to an S3 bucket or compatible is required. Please edit the `backend/env.example` file with
+the correct values for your bucket. `BUCKET_FOLDER` is a new folder that will be created in your bucket to keep this project's
+resources separated. After you edited the values, rename the `backend/env.example` to just `backend/.env`.
 
-Now that we have published the move code, and update the package ID, we can start the app.
+In order to run the project make sure you followed the previous step with the contract publishing. If you are using testnet 
+and want to use an already published contract you can add an `app/.env` file with the following:
 
-To build move:
-```bash
-cd counter && sui move build
-```
+- VITE_PACKAGE_ID="address of the published contract"
+- VITE_ACTIVE_NETWORK="testnet" // or the network your contract lives in.
+- VITE_BACKEND="http://localhost:3000" // or whichever port your backend is listening to.
 
-To run move tests:
-```bash
-sui move test
-```
-## Starting your dApp
+To run the backend, from `backend/` run `pnpm dev`.
+To run the frontent, from `app/` run `pnpm dev`.
 
-To install dependencies you can run in root dir
-
-```bash
-cd app 
-pnpm install
-```
-
-To start your dApp in development mode run
-
-```bash
-pnpm dev
-```
-
-## Building
-
-To build your app for deployment you can run
-
-```bash
-pnpm build
-```
+### Exploring the demo
+Open a browser and navigate to `http://localhost:3000` (by default). If you changed the port, input the correct port.

@@ -61,7 +61,7 @@ fi
 cat >../.env<<-ENV
 VITE_PACKAGE_ID=$PACKAGE_ID
 VITE_ACTIVE_NETWORK=$ACTIVE_NETWORK
-VITE_BACKEND="please set to correct value"
+VITE_BACKEND="http://localhost:3000"
 ENV
 
-echo "Encrypted NFT marketplace finished!"
+echo "Encrypted NFT package published!"

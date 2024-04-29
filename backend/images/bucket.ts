@@ -1,16 +1,18 @@
 import { S3, PutObjectCommand, ObjectCannedACL } from "@aws-sdk/client-s3";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 const public_read: ObjectCannedACL = "public-read";
-const bucket = "byandreas";
-const folder = "mystenlabs";
-const endpoint = "https://byandreas.fra1.digitaloceanspaces.com";
+const bucket = process.env.BUCKET_NAME;
+const folder = process.env.BUCKET_FOLDER;
+const endpoint = process.env.BUCKET_ADDRESS;
 const s3Client = new S3({
   forcePathStyle: false,
-  endpoint: "https://fra1.digitaloceanspaces.com",
-  region: "fra1",
+  endpoint: process.env.BUCKET_ADDRESS,
+  region: process.env.BUCKET_REGION,
   credentials: {
-    accessKeyId: process.env.DO_KEY!,
-    secretAccessKey: process.env.DO_SECRET!,
+    accessKeyId: process.env.BUCKET_KEY!,
+    secretAccessKey: process.env.BUCKET_SECRET!,
   },
 });
 
@@ -24,8 +26,7 @@ export async function uploadImage(image: string, name: string): Promise<string> 
     ContentEncoding: 'base64',
     ContentType: "image/png",
   };
-  const result = await s3Client.send(new PutObjectCommand(params));
-  console.log(result);
+  await s3Client.send(new PutObjectCommand(params));
   return `${endpoint}/${folder}/${name}`;
 }
 
