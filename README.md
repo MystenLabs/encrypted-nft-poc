@@ -51,39 +51,50 @@ curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
 --header 'Content-Type: application/json' \
 --data-raw '{
     "FixedAmountRequest": {
-        "recipient": "0x1b87a727f58830d9ba2bfe6ecdc8fb49aa96fa2a2bbe175e128bfee13f6895ff"
+        "recipient": "0xYOUR_ADDRESS"
     }
 }'
 ```
 
 ### Publishing the move package
 
-The move code for this template is located in the `package` directory. To publish
-it, it is suggested to navigate to `app/publish/` and run `./publish.sh` in your console.
-This will create an `.env` file in the app with the package id and the network you published to.
-Sui CLI is a pre-requisite for this to function.
+The move code for this template is located in the `package` directory. To publish the smart contract, run the script:
+```
+cd app/publish/
+./publish.sh
+```
 
-After you ran the script edit the `.env` that was created and add the backend address that by
-default is set to `http://localhost:3000`. This can be changed in `backend/server.ts#175` by modifying
-the number after `app.listen(3000 ...)`.
+This will create an `app/.env` file in the app with the package id and the network you published to. 
+
+This sets the default server running at `http://localhost:3000`. This can be changed in `backend/server.ts#175` by modifying the number after `app.listen(3000 ...)`.
 
 ### Running the demo
+
 This project has a backend, a frontend and a move contract that can be found respectively in:
 `app/`, `backend/` and `package/`.
 
-For the backend to work access to an S3 bucket or compatible is required. Please edit the `backend/env.example` file with
-the correct values for your bucket. `BUCKET_FOLDER` is a new folder that will be created in your bucket to keep this project's
-resources separated. After you edited the values, rename the `backend/env.example` to just `backend/.env`.
+Copy the `backend/env.example` file to `backend/.env` and edit the bucket values according to your S3 configurations as follows: 
+```
+BUCKET_REGION="us-east-1" # ca;
+BUCKET_ADDRESS="s3://..."
+BUCKET_NAME="my_bucket"
+BUCKET_FOLDER="encryptedNFT"
+BUCKET_KEY="..."
+BUCKET_SECRET="..."
+```
 
-In order to run the project make sure you followed the previous step with the contract publishing. If you are using testnet 
-and want to use an already published contract you can add an `app/.env` file with the following:
+This example uses AWS S3 to store resources. This can be modified for other storage solutions. To set up an AWS S3 bucket, go to https://aws.amazon.com/s3/ and create a bucket with a name, then update `backend/.env`. 
 
-- VITE_PACKAGE_ID="address of the published contract"
-- VITE_ACTIVE_NETWORK="testnet" // or the network your contract lives in.
-- VITE_BACKEND="http://localhost:3000" // or whichever port your backend is listening to.
 
-To run the backend, from `backend/` run `pnpm dev`.
-To run the frontent, from `app/` run `pnpm dev`.
+Copy `app/.env.example` to  `app/.env` file and edit the following:
+
+```
+VITE_PACKAGE_ID="0xCONTRACT_ADDRESS" # see contract address from the previous publishing step
+VITE_ACTIVE_NETWORK="testnet" // or the network your contract lives in.
+VITE_BACKEND="http://localhost:3000" // or whichever port your backend is listening to.
+```
+To run the backend, from `backend/` run `pnpm install && pnpm dev`.
+In another tab, to run the frontend, from `app/` run `pnpm install && pnpm dev`.
 
 ### Exploring the demo
-Open a browser and navigate to `http://localhost:3000` (by default). If you changed the port, input the correct port.
+Open a browser and navigate to frontend localhost (by default). If you changed the port, input the correct port.
