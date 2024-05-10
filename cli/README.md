@@ -57,3 +57,36 @@ target/release/enft-cli decrypt --enc-master-sk b5222036738cbd5d3271f6f67a6a76a8
 Recovered master sk: "a1466cfa0e01b2b2a40663d18ce5651459444580ac4b3cd36a403ba0a46cb76eda010994c94858edc4811570f8893af4"
 Original nft saved to original_nft.png. This is identical with capy.png
 ```
+
+
+## Generate and Derive Encryption Key
+
+1. User private key model
+```
+cd cli/
+cargo build --release
+
+target/release/enft-cli generate-or-derive-encryption-key
+
+Generated mnemonics: "win violin swap modify pumpkin ready burst ivory weekend reopen female struggle"
+Private encryption key: "1499ec4cdc769fccd5a8952dc20bae6aae271780dc187ebadf8d8a4b84db215f"
+Public encryption key: "b1d1440ea034337d386d3989586c86705917a4e450dfdc216bb709dc83a7844ea549bd4f618c0244d5d11d48c5a6b053"
+
+target/release/enft-cli generate-or-derive-encryption-key -m "dove vault canoe aisle tiger layer tape occur arrange control raccoon guilt"
+
+Private encryption key: "26151c5c0cb67ab2f2f37d000374a629ae1b7f35658d1bd5af4954e5c7ff8f81"
+Public encryption key: "82587479cf572cd6c17b19fcd979ef574da0f372f42498db7e8078319d8b74af73a9e583b54e9113111ada9301e0231a"
+
+target/release/enft-cli generate-or-derive-encryption-key -m "dove vault canoe aisle tiger layer tape occur arrange control raccoon guilt" -d "m/94'/784'/1'/0'/0"
+
+Private encryption key: "257f94f04abdc37734e8e637085f9a04eac0a2b81c5a0d39d88d1fa2db12a643"
+Public encryption key: "ad3c8fce5b5f1fb04ecb70c3cb2c1661cee3018c91ad891e744a1bf12a94cfd0a82ce899d459fab06be57ec430e16423"
+```
+
+2. Custodial server model
+```
+target/release/enft-cli derive-encryption-key -m 257f94f04abdc37734e8e637085f9a04eac0a2b81c5a0d39d88d1fa2db12a643 -a example_app -u 1
+
+Private encryption key: "2ed7c0d6eb901a9a65f7ce19dca358f1889101588d3a5482f087bf334439b7c4"
+Public encryption key: "a8c558b25cc2d74f05abf265ad956b83c375a4efb0bc61b29d038d4b87dce126736a772e4f5a41c24d2b409a88af6da5"
+```

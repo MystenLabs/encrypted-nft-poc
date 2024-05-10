@@ -1,24 +1,33 @@
 // Copyright (c) 2022, Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+use std::str::FromStr;
+
+use crate::key_derive::derive_key;
 use crate::utils::load_image;
 use crate::utils::{load_and_sample_image, save_image};
+use bip32::DerivationPath;
+use bip39::{Language, Mnemonic, MnemonicType};
 use clap::Parser;
 use fastcrypto::aes::Cipher;
 use fastcrypto::aes::InitializationVector;
 use fastcrypto::encoding::{Encoding, Hex};
-use fastcrypto::groups::bls12381::{G1Element, Scalar};
+use fastcrypto::groups::bls12381::{G1Element, Scalar, SCALAR_LENGTH};
 use fastcrypto::hash::Blake2b256;
+use fastcrypto::hmac::{hkdf_sha3_256, HkdfIkm};
 use fastcrypto::serde_helpers::ToFromByteArray;
-use fastcrypto::traits::Generate;
+use fastcrypto::traits::{Generate, ToFromBytes};
 use fastcrypto::{
     groups::{GroupElement, Scalar as ScalarTrait},
     hash::HashFunction,
 };
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
 use typenum::U12;
 use utils::{msk_to_cipher, recover_image};
 
+pub mod key_derive;
 pub mod utils;
 
 #[derive(Parser)]
@@ -31,6 +40,16 @@ enum Command {
     /// Generate the encryption key. This can be used by either the buyer
     /// or the creator.
     GenerateEncryptionKey,
+
+    /// Generate a master private key and its mnemonics if not provided.
+    /// Otherwise, derive the encryption key based on the providede mnemonics
+    /// with the provided derivation path. Otherwise use the default
+    /// derivation path m/94'/784'/0'/0'/0'.
+    GenerateOrDeriveEncryptionKey(GenerateArgs),
+
+    /// Example implementation for a key server that uses a master key and
+    /// derive encryption keys based on unique app id and user id.
+    DeriveEncryptionKey(DeriveArgs),
 
     /// Encrypt the master key under the given pubkey. Output encrypted
     /// master key (enc_msk) and ciphertext. This is done by creator when
@@ -50,6 +69,32 @@ enum Command {
     /// Given a proof, the previous encryption and its pubkey (seller's pk),
     /// the current encryption and its pubkey (buyer's pk), verify the proof.
     Verify(VerifyArgs),
+}
+
+#[derive(Parser, Clone)]
+struct GenerateArgs {
+    /// The mnemonics representing the master private key.
+    #[clap(short, long)]
+    mnemonics: Option<String>,
+
+    /// A valid derivation path in this form: m/94'/784'/{account}'/{change}'/{address}'.
+    #[clap(short, long)]
+    derivation_path: Option<DerivationPath>,
+}
+
+#[derive(Parser, Clone)]
+struct DeriveArgs {
+    /// The 32-byte master secret key encoded in hex held securely by the server.
+    #[clap(short, long)]
+    master_key: String,
+
+    /// The app_id for the application (example: `iss_len || iss || aud_len || aud`).
+    #[clap(short, long)]
+    app_id: String,
+
+    /// The user id uniquely identifying the use (example: `sub`).
+    #[clap(short, long)]
+    user_id: String,
 }
 
 #[derive(Parser, Clone)]
@@ -349,6 +394,56 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
                 panic!("Invalid Schnorr proof for v");
             }
             println!("Proof verified.");
+            Ok(())
+        }
+        Command::GenerateOrDeriveEncryptionKey(args) => {
+            let derivation_path = args
+                .derivation_path
+                .unwrap_or(DerivationPath::from_str("m/94'/784'/0'/0'/0").unwrap());
+
+            let private_key = if let Some(mnemonics) = args.mnemonics {
+                let mnemonics = Mnemonic::from_phrase(&mnemonics, Language::English).unwrap();
+                derive_key(mnemonics, derivation_path)
+            } else {
+                let mnemonics = Mnemonic::new(MnemonicType::Words12, Language::English);
+                println!("Generated mnemonics: {:?}", mnemonics.phrase());
+                derive_key(mnemonics, derivation_path)
+            };
+
+            let gen = G1Element::generator();
+            let public_key = gen * private_key;
+            println!(
+                "Private encryption key: {:?}",
+                Hex::encode(private_key.to_byte_array())
+            );
+            println!(
+                "Public encryption key: {:?}",
+                Hex::encode(public_key.to_byte_array())
+            );
+            Ok(())
+        }
+        Command::DeriveEncryptionKey(args) => {
+            let master_key = Hex::decode(&args.master_key).unwrap();
+            let bytes = hkdf_sha3_256(
+                &HkdfIkm::from_bytes(&master_key).unwrap(),
+                args.app_id.as_bytes(),
+                args.user_id.as_bytes(),
+                SCALAR_LENGTH,
+            )
+            .unwrap();
+
+            let mut rng = StdRng::from_seed(bytes.try_into().unwrap());
+            let private_key = Scalar::rand(&mut rng);
+            let gen = G1Element::generator();
+            let public_key = gen * private_key;
+            println!(
+                "Private encryption key: {:?}",
+                Hex::encode(private_key.to_byte_array())
+            );
+            println!(
+                "Public encryption key: {:?}",
+                Hex::encode(public_key.to_byte_array())
+            );
             Ok(())
         }
     }
