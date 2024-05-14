@@ -1,6 +1,6 @@
 import { Image } from "image-js";
 import * as crypto from "crypto";
-import { encrypt, decrypt, PrivateKey } from "eciesjs";
+import { PrivateKey } from "eciesjs";
 import { bls12_381 } from "@noble/curves/bls12-381";
 import { ProjPointType } from "@noble/curves/abstract/weierstrass";
 import { sha256 } from "@noble/hashes/sha256";

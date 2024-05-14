@@ -27,7 +27,7 @@ export async function uploadImage(image: string, name: string): Promise<string> 
     ContentType: "image/png",
   };
   await s3Client.send(new PutObjectCommand(params));
-  return `${endpoint}/${folder}/${name}`;
+  return `${endpoint}/${bucket}/${folder}/${name}`;
 }
 
 export async function uploadCiphertext(cipher: string, imageName: string): Promise<string> {
@@ -40,7 +40,7 @@ export async function uploadCiphertext(cipher: string, imageName: string): Promi
         ContentType: "text/plain",
     };
     const result = await s3Client.send(new PutObjectCommand(params));
-    return `${endpoint}/${path}`;
+    return `${endpoint}/${bucket}/${path}`;
 }
 
 export async function deleteItem(path: string): Promise<void> {
