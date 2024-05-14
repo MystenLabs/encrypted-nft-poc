@@ -34,7 +34,7 @@ echo "Admin address used for publishing: ${ACTIVE_ADMIN_ADDRESS}"
 ACTIVE_NETWORK=$(sui client active-env)
 echo "Environment used is: ${ACTIVE_NETWORK}"
 
-publish_res=$(sui client publish --gas-budget 2000000000 --json ../../marketplace/)
+publish_res=$(sui client publish --gas-budget 2000000000 --json ../../package/)
 
 echo ${publish_res} >.publish.res.json
 
@@ -49,8 +49,6 @@ PACKAGE_ID=$(echo "${publish_res}" | jq -r '.effects.created[] | select(.owner =
 
 newObjs=$(echo "$publish_res" | jq -r '.objectChanges[] | select(.type == "created")')
 
-MARKETPLACE=$(echo "$newObjs" | jq -r 'select (.objectType | contains("::private_nft_market::Marketplace")).objectId')
-
 PUBLISHER_ID=$(echo "$newObjs" | jq -r 'select (.objectType | contains("package::Publisher")).objectId')
 
 UPGRADE_CAP_ID=$(echo "$newObjs" | jq -r 'select (.objectType | contains("package::UpgradeCap")).objectId')
@@ -61,12 +59,9 @@ if [ $# -eq 0 ]; then
 fi
 
 cat >../.env<<-ENV
-VITE_ADMIN_PHRASE=$ADMIN_PHRASE
 VITE_PACKAGE_ID=$PACKAGE_ID
-PUBLISHER_ID=$PUBLISHER_ID
 VITE_ACTIVE_NETWORK=$ACTIVE_NETWORK
-VITE_MARKETPLACE=$MARKETPLACE
-VITE_LISTINGS_TABLE="please set to correct value"
+VITE_BACKEND="http://localhost:3000"
 ENV
 
-echo "Encrypted NFT marketplace finished!"
+echo "Encrypted NFT package published!"

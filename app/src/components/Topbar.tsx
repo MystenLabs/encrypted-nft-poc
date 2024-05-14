@@ -6,10 +6,10 @@ import logo from "../../assets/Logo.svg";
 import "../styles/topbar.css";
 
 interface TopBarProps { 
-  onStartSell: () => void;
+  onStart: () => void;
 }
 
-const TopBar = ({onStartSell}: TopBarProps) => {
+export const TopBar = ({onStart}: TopBarProps) => {
   return (
     <>
       <Flex
@@ -23,22 +23,19 @@ const TopBar = ({onStartSell}: TopBarProps) => {
           borderBottom: "1px solid #EAECEF",
         }}
       >
-        <Flex direction="row" justify="start">
+        <Flex direction="row" justify="start" onClick={() => {window.location.replace("/")}}>
           <img
             src={logo}
             alt="Mysten labs"
             id="logo"
             className="top-element"
           ></img>
-          <p id="text_top" className="top-element">
-            Marketplace
-          </p>
         </Flex>
         <Box>
             <TopBarSearch />
         </Box>
         <Box>
-            <TopButton onStartSell={onStartSell} />
+            <TopButton onStart={onStart} />
         </Box>
         <Box>
           <ConnectButton id="connect_button"/>
@@ -47,5 +44,3 @@ const TopBar = ({onStartSell}: TopBarProps) => {
     </>
   );
 };
-
-export default TopBar;

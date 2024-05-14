@@ -12,24 +12,24 @@ const WelcomePage = () => {
           alignItems: "flex-start",
         }}
       >
-        <Box style={{ textAlign: "justify", wordWrap: "break-word", width: "40%" }}>
+        <Box
+          style={{ textAlign: "justify", wordWrap: "break-word", width: "40%" }}
+        >
           <Flex
             direction={"row"}
             justify={"start"}
-            style={{ marginBottom: "50px", marginTop: "40px" }}
+            style={{ marginBottom: "30px", marginTop: "40px" }}
           >
-            <img src={logo} alt="Mysten labs" id="logo"></img>
-            <p id="text_top">Marketplace</p>
+            <img src={logo} alt="Mysten labs"></img>
           </Flex>
-          <Box>
-            <Heading size="2">Buy or Sell Encrypted NFTs on Sui</Heading>
+          <Box style={{ marginLeft: "5px" }}>
+            <Heading size="2">Explore Encrypted NFTs on Sui</Heading>
             <p>
-              Your hub for buying and selling Encrypted NFT artworks. Join the
-              community and explore the world of digital obfuscated art
-              ownership unlike any other marketplaces.
+              Your hub for exploring Encrypted NFT artworks. Join the community
+              and discover the world of digital obfuscated art ownership.
             </p>
           </Box>
-          <ConnectButton />
+          <ConnectButton style={{ marginTop: "20px" }} />
         </Box>
       </Flex>
     </>

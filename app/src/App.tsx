@@ -1,22 +1,22 @@
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { Box } from "@radix-ui/themes";
-import Marketplace from "./pages/Marketplace";
-import TopBar from "./components/Topbar";
+import { PersonalSpace } from "./pages/PersonalSpace";
+import { TopBar } from "./components/Topbar";
 import "./styles/global.css";
 import WelcomePage from "./pages/WelcomePage";
-import SellPage from "./pages/SellPage";
+import { ListPage } from "./pages/ListPage";
 import { useState } from "react";
 
 function App() {
-  const [showSellPage, setShowSellPage] = useState(false);
+  const [showListPage, setShowListPage] = useState(false);
   const currentAcc = useCurrentAccount();
 
-  const finishSell = () => {
-    setShowSellPage(false);
+  const finishListing = () => {
+    setShowListPage(false);
   };
 
-  const startSell = () => {
-    setShowSellPage(true);
+  const startListing = () => {
+    setShowListPage(true);
   };
 
   if (currentAcc == null) {
@@ -28,9 +28,13 @@ function App() {
   }
   return (
     <Box style={{ width: "100%", height: "100%" }}>
-      <TopBar onStartSell={startSell} />
+      <TopBar onStart={startListing} />
       <Box style={{ background: "var(--gray-a2)", height: "100%" }}>
-        {showSellPage ? <SellPage onFinish={finishSell} /> : <Marketplace />}
+        {showListPage ? (
+          <ListPage onFinish={finishListing} />
+        ) : (
+          <PersonalSpace />
+        )}
       </Box>
     </Box>
   );

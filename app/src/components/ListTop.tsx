@@ -8,17 +8,15 @@ interface SellTopProps {
     step: number;
 }
 
-const SellTop = ({step, setStep}: SellTopProps) => {
+export const ListTop = ({step, setStep}: SellTopProps) => {
     const goBack = () => {
         setStep(step - 1);
     }
   return (
     <>
       <Button onClick={goBack}><img src={ArrowLeft}/> Back</Button>
-      <Heading>Sell your Artwork</Heading>
+      <Heading>List your Artwork</Heading>
       <StepTracker currentStep={step} />
     </>
   );
 };
-
-export default SellTop;

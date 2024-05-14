@@ -1,4 +1,4 @@
-# Encrypted NFT marketplace
+# Encrypted NFT Demo
 
 This dApp was created using `@mysten/create-dapp` that sets up a simple React
 Client dApp using the following tools:
@@ -51,57 +51,50 @@ curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
 --header 'Content-Type: application/json' \
 --data-raw '{
     "FixedAmountRequest": {
-        "recipient": "0x1b87a727f58830d9ba2bfe6ecdc8fb49aa96fa2a2bbe175e128bfee13f6895ff"
+        "recipient": "0xYOUR_ADDRESS"
     }
 }'
 ```
 
 ### Publishing the move package
 
-The move code for this template is located in the `move` directory. To publish
-it, you can enter the parent directory of `counter` and publish it with the Sui CLI:
-
-```bash
-sui client publish --gas-budget 100000000 counter
+The move code for this template is located in the `package` directory. To publish the smart contract, run the script:
+```
+cd app/publish/
+./publish.sh
 ```
 
-In the output there will be an object with a `"packageId"` property. You'll want
-to save that package ID to the `src/constants.ts` file as `PACKAGE_ID`:
+This will create an `app/.env` file in the app with the package id and the network you published to. 
 
-```ts
-export const DEVNET_COUNTER_PACKAGE_ID = "<YOUR_PACKAGE_ID>";
+This sets the default server running at `http://localhost:3000`. This can be changed in `backend/server.ts#175` by modifying the number after `app.listen(3000 ...)`.
+
+### Running the demo
+
+This project has a backend, a frontend and a move contract that can be found respectively in:
+`app/`, `backend/` and `package/`.
+
+Copy the `backend/env.example` file to `backend/.env` and edit the bucket values according to your S3 configurations as follows: 
+```
+BUCKET_REGION="us-east-1" # ca;
+BUCKET_ADDRESS="s3://..."
+BUCKET_NAME="my_bucket"
+BUCKET_FOLDER="encryptedNFT"
+BUCKET_KEY="..."
+BUCKET_SECRET="..."
 ```
 
-Now that we have published the move code, and update the package ID, we can start the app.
+This example uses AWS S3 to store resources. This can be modified for other storage solutions. To set up an AWS S3 bucket, go to https://aws.amazon.com/s3/ and create a bucket with a name, then update `backend/.env`. 
 
-To build move:
-```bash
-cd counter && sui move build
+
+Copy `app/.env.example` to  `app/.env` file and edit the following:
+
 ```
-
-To run move tests:
-```bash
-sui move test
+VITE_PACKAGE_ID="0xCONTRACT_ADDRESS" # see contract address from the previous publishing step
+VITE_ACTIVE_NETWORK="testnet" // or the network your contract lives in.
+VITE_BACKEND="http://localhost:3000" // or whichever port your backend is listening to.
 ```
-## Starting your dApp
+To run the backend, from `backend/` run `pnpm install && pnpm dev`.
+In another tab, to run the frontend, from `app/` run `pnpm install && pnpm dev`.
 
-To install dependencies you can run in root dir
-
-```bash
-cd app 
-pnpm install
-```
-
-To start your dApp in development mode run
-
-```bash
-pnpm dev
-```
-
-## Building
-
-To build your app for deployment you can run
-
-```bash
-pnpm build
-```
+### Exploring the demo
+Open a browser and navigate to frontend localhost (by default). If you changed the port, input the correct port.

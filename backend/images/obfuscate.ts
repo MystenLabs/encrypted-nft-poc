@@ -1,36 +1,55 @@
 import { Image } from "image-js";
 import * as crypto from "crypto";
-import { encrypt, decrypt, PrivateKey } from "eciesjs";
+import { PrivateKey } from "eciesjs";
+import { bls12_381 } from "@noble/curves/bls12-381";
+import { ProjPointType } from "@noble/curves/abstract/weierstrass";
+import { sha256 } from "@noble/hashes/sha256";
 
 interface ColorValues {
   [key: string]: number[];
 }
 
 // can be fine-tuned
-const sensitivity = 0.7;
-const gridSize = 100;
-const initializationVector = crypto.getRandomValues(new Uint8Array(16));
+const initializationVector = Uint8Array.from([
+  138, 55, 153, 253, 198, 46, 121, 219, 160, 128, 89, 7, 214, 156, 148, 220,
+]);
 
 const imgToBase64 = (img: Image) => {
   const data = img.toDataURL("image/png");
   return data;
 };
 
-const edgeDetectionTemplate = async (image: string): Promise<number[][]> => {
+const randomTemplate = async (image: string): Promise<number[][]> => {
   const img = await Image.load(image);
-  const grayImage = img.grey();
-  const gradientMagnitude = grayImage.sobelFilter();
 
-  const thresholdedEdges = gradientMagnitude.data.map((pixel: number) => {
-    return pixel > sensitivity ? 1 : 0;
-  });
+  const startXYs: number[][] = [];
+  const obscureWidth = img.width / 5;
+  const obscureHeight = img.height / 5;
+  for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 5; j++) {
+      startXYs.push([
+        Math.floor(obscureWidth * i),
+        Math.floor(obscureHeight * j),
+      ]);
+    }
+  }
+  const choices: number[][] = [];
+
+  for (let i = 0; i < 10; i++) {
+    const rand = Math.floor(Math.random() * startXYs.length);
+    const choice = startXYs.splice(rand, 1)[0];
+    choices.push(choice);
+  }
+
   // Convert the 1D thresholded edge array into a 2D boolean array
   const selectedPixels: number[][] = [];
-  for (let y = 0; y < img.height; y++) {
-    for (let x = 0; x < img.width; x++) {
-      const index = y * img.width + x;
-      if (thresholdedEdges[index] === 1) {
-        selectedPixels.push([x, y]);
+
+  for (let choice of choices) {
+    const x = choice[0];
+    const y = choice[1];
+    for (let j = y; j < y + obscureHeight; j++) {
+      for (let i = x; i < x + obscureWidth; i++) {
+        selectedPixels.push([i, j]);
       }
     }
   }
@@ -40,8 +59,8 @@ const edgeDetectionTemplate = async (image: string): Promise<number[][]> => {
 
 const uniformTemplate = async (image: string): Promise<number[][]> => {
   const img = await Image.load(image);
-  const cellWidth = Math.ceil(img.width / gridSize);
-  const cellHeight = Math.ceil(img.height / gridSize);
+  const cellWidth = Math.ceil(img.width / 200);
+  const cellHeight = Math.ceil(img.height / 200);
 
   const erasedPixels: [number, number][] = [];
   for (let y = 0; y < img.height; y += cellHeight) {
@@ -56,19 +75,77 @@ const uniformTemplate = async (image: string): Promise<number[][]> => {
 
 const crossTemplate = async (image: string): Promise<number[][]> => {
   const img = await Image.load(image);
-  const thickness = Math.ceil(Math.max(img.height / 10, img.width / 10)); 
+  const thickness = Math.ceil(Math.max(img.height / 10, img.width / 10));
   const selectedPixels: number[][] = [];
   for (let y = 0; y < img.height; y++) {
     for (let x = 0; x < img.width; x++) {
       if (
-        (x < img.width / 2 + thickness && x > img.width / 2 - thickness) ||
-        (y < img.height / 2 + thickness && y > img.height / 2 - thickness)
+        Math.abs(x - y) < thickness ||
+        Math.abs(x + y + 1 - img.width) < thickness
       ) {
         selectedPixels.push([x, y]);
       }
     }
   }
   return selectedPixels;
+};
+
+export const generatePrivateKey = () => {
+  return bls12_381.utils.randomPrivateKey();
+};
+
+export const encryptSecretKeyBLS = (
+  secretKey: Uint8Array,
+  privateKey: Uint8Array,
+  encryptionRandomness: Uint8Array
+) => {
+  const publicKey = bls12_381.G1.ProjectivePoint.BASE.multiply(
+    BigInt(`0x${Buffer.from(privateKey).toString("hex")}`)
+  );
+  const randomBytes = BigInt(
+    `0x${Buffer.from(encryptionRandomness).toString("hex")}`
+  );
+  const ephemeral = bls12_381.G1.ProjectivePoint.BASE.multiply(randomBytes);
+  const cipher_ = publicKey.multiply(randomBytes);
+  const cipher = cipher_.add(
+    bls12_381.G1.ProjectivePoint.fromHex(Buffer.from(secretKey).toString("hex"))
+  );
+
+  return { ephemeral, cipher };
+};
+
+export const decryptSecretKeyBLS = (
+  ephemeralHex: string,
+  ciphertextHex: string,
+  privateKey: Uint8Array
+) => {
+  const ephemeral = bls12_381.G1.ProjectivePoint.fromHex(ephemeralHex);
+  const cipher = bls12_381.G1.ProjectivePoint.fromHex(ciphertextHex);
+  const dec = ephemeral.multiply(
+    bls12_381.G1.normPrivateKeyToScalar(privateKey)
+  );
+  return cipher.subtract(dec).toRawBytes();
+};
+
+export const serializeToHex = ({
+  ephemeral,
+  cipher,
+}: {
+  ephemeral: ProjPointType<bigint>;
+  cipher: ProjPointType<bigint>;
+}) => {
+  const toSerialize = { ephemeral: ephemeral.toHex(), cipher: cipher.toHex() };
+  const jsonString = JSON.stringify(toSerialize);
+  return Buffer.from(jsonString).toString("hex");
+};
+
+export const desirializeFromHex = (hex: string) => {
+  const jsonString = Buffer.from(hex, "hex").toString("utf-8");
+  const { ephemeral, cipher } = JSON.parse(jsonString);
+  return {
+    ephemeral: bls12_381.G1.ProjectivePoint.fromHex(ephemeral),
+    cipher: bls12_381.G1.ProjectivePoint.fromHex(cipher),
+  };
 };
 
 export const generateKeypair = async () => {
@@ -80,22 +157,6 @@ export const generateKeypair = async () => {
   };
 };
 
-export const encryptSecretKey = async (
-  secretKey: Uint8Array,
-  privateKey: string
-) => {
-  const privKey = PrivateKey.fromHex(privateKey);
-  const pubKey = privKey.publicKey.toHex();
-  return encrypt(pubKey, secretKey).toString("hex");
-};
-
-export const decryptSecretKey = async (
-  encryptedKey: string,
-  privateKey: string
-) => {
-  const privKey = PrivateKey.fromHex(privateKey);
-  return decrypt(privKey.toHex(), Buffer.from(encryptedKey, "hex"));
-};
 const aesEncrypt = async (data: string, secretKey: Uint8Array) => {
   const cipher = crypto.createCipheriv(
     "aes-256-cbc",
@@ -120,9 +181,9 @@ const aesDecrypt = async (data: string, secretKey: Uint8Array) => {
 // method can be "edgeDetection" or "uniform" or "cross"
 export const obfuscate = async (image: string, method: string = "cross") => {
   let selectedPixels: number[][] = [];
-  if (method === "edgeDetection") {
-    selectedPixels = await edgeDetectionTemplate(image);
-  } else if (method === "uniform") {
+  if (method === "random") {
+    selectedPixels = await randomTemplate(image);
+  } else if (method === "blur") {
     selectedPixels = await uniformTemplate(image);
   } else {
     selectedPixels = await crossTemplate(image);
@@ -136,10 +197,10 @@ export const obfuscate = async (image: string, method: string = "cross") => {
   const obfuscatedImage = new Image(img.width, img.height, img.data);
 
   // generate a new secret key
-  const secretKey = crypto.getRandomValues(new Uint8Array(32));
-
+  const secretKey = generateSecretKey();
+  const secretKeyHash = sha256.create().update(secretKey).digest();
   // encrypt the color values
-  const ciphertext = await aesEncrypt(JSON.stringify(values), secretKey);
+  const ciphertext = await aesEncrypt(JSON.stringify(values), secretKeyHash);
 
   return {
     obfuscatedImage: imgToBase64(obfuscatedImage),
@@ -154,14 +215,18 @@ export const deobfuscate = async (
   secretKey: Uint8Array
 ) => {
   const img = await Image.load(obfuscatedImage);
-  // const pixels = img.getPixelsArray();
-  const decrypted: ColorValues = JSON.parse(
-    await aesDecrypt(ciphertext, secretKey)
-  );
+  const secretKeyHash = sha256.create().update(secretKey).digest();
+  const d = await aesDecrypt(ciphertext, secretKeyHash);
+  const decrypted: ColorValues = JSON.parse(d);
   for (let [key, value] of Object.entries(decrypted)) {
     const [x, y] = key.split(",").map(Number);
     img.setPixelXY(x, y, value as number[]);
   }
 
   return imgToBase64(img);
+};
+
+export const generateSecretKey = () => {
+  const random = BigInt(`0x${crypto.randomBytes(8).toString("hex")}`);
+  return bls12_381.G1.ProjectivePoint.BASE.multiply(random).toRawBytes();
 };
