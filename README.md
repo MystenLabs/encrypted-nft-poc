@@ -69,9 +69,9 @@ If there is no error in`.publish.res.json`, the contract is published successful
 ```
 
 ```
-VITE_PACKAGE_ID="0xCONTRACT_ADDRESS" # confirm using explorer the contract is indeed published
-VITE_ACTIVE_NETWORK="devnet" # should be devnet
-VITE_BACKEND="http://localhost:3000" # where the backend is running on
+VITE_PACKAGE_ID=0xCONTRACT_ADDRESS # confirm using explorer the contract is indeed published
+VITE_ACTIVE_NETWORK=devnet # should be devnet
+VITE_BACKEND=http://localhost:3000/ # where the backend is running on
 ```
 
 This sets the default server running at `http://localhost:3000`. This can be changed in `backend/server.ts#175` by modifying the number after `app.listen(3000 ...)`.
