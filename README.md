@@ -60,8 +60,13 @@ curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
 
 The move code for this template is located in the `package` directory. To publish the smart contract, run the script:
 ```
+
+# change network if needed
+sui client active-env
+sui client switch --env testnet
+
 cd app/publish/
-./publish.sh
+./publish.sh 
 ```
 
 This will create an `app/.env` file in the app with the package id and the network you published to. 
