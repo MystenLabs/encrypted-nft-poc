@@ -1,50 +1,34 @@
 # Encrypted NFT Demo
 
-This dApp was created using `@mysten/create-dapp` that sets up a simple React
-Client dApp using the following tools:
+This is an end to end implementation of the Encrypted NFT construction. The project consists of a Move smart contract packag (`package/`), the application frontend (`app/`) and the backend server (`backend/`). 
 
-- [React](https://react.dev/) as the UI framework
-- [TypeScript](https://www.typescriptlang.org/) for type checking
-- [Vite](https://vitejs.dev/) for build tooling
-- [Radix UI](https://www.radix-ui.com/) for pre-built UI components
-- [ESLint](https://eslint.org/) for linting
-- [`@mysten/dapp-kit`](https://sdk.mystenlabs.com/dapp-kit) for connecting to
-  wallets and loading data
-- [pnpm](https://pnpm.io/) for package management
+We first install Sui CLI for various utility operations. Then we go over how to deploy the smart contract, configure and run the backend and application frontend for the complete demo. 
 
-## Deploying your Move code
+## Install Sui CLI
 
-### Install Sui cli
-
-Before deploying your move code, ensure that you have installed the Sui CLI. You
-can follow the [Sui installation instruction](https://docs.sui.io/build/install)
-to get everything set up.
-
-This template uses `devnet` by default, so we'll need to set up a devnet
-environment in the CLI:
+First, follow the [Sui installation instruction](https://docs.sui.io/build/install) to get Sui CLI if needed. This demo uses `devnet` by default, so set up a devnet environment in the CLI if this is not done before:
 
 ```bash
+cargo install --locked --git https://github.com/MystenLabs/sui.git --branch devnet sui
 sui client new-env --alias devnet --rpc https://fullnode.devnet.sui.io:443
 sui client switch --env devnet
 ```
 
-If you haven't set up an address in the sui client yet, you can use the
-following command to get a new address:
+Then make sure the active environment is devnet, and also confirm an active address is present in keystore. This corresponds to the private key for deploying the smart contract. 
+
+```
+sui client active-env
+sui client active-address
+```
+
+If needed, create a new private key and its new address, then switch to use it:
 
 ```bash
 sui client new-address secp256k1
+sui client switch --address 0xYOUR_ADDRESS
 ```
 
-This well generate a new address and recover phrase for you. You can mark a
-newly created address as you active address by running the following command
-with your new address:
-
-```bash
-sui client switch --address 0xYOUR_ADDRESS...
-```
-
-We can ensure we have some Sui in our new wallet by requesting Sui from the
-faucet (make sure to replace the address with your address):
+Request some test coins from the devnet faucet, replace the recipeint with the active address from above: 
 
 ```bash
 curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
@@ -56,48 +40,76 @@ curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
 }'
 ```
 
-### Publishing the move package
+## Publish the Encrypted NFT Smart Contract
 
-The move code for this template is located in the `package` directory. To publish the smart contract, run the script:
+To publish the smart contract, run the script:
+
 ```
-
-# change network if needed
+# make sure the active env is devnet
+sui client switch --env devnet
 sui client active-env
-sui client switch --env testnet
 
+# build package and publish using the script
+sui move build
 cd app/publish/
 ./publish.sh 
 ```
+If there is no error in`.publish.res.json`, the contract is published successfully and an `app/.env` file is created with the package id and the network you published to.
 
-This will create an `app/.env` file in the app with the package id and the network you published to. 
+```
+    {
+      "type": "published",
+      "packageId": "0xCONTRACT_ADDRESS",
+      "version": "1",
+      "digest": "EkL2Dx3hp7v61wmwWg884jb61GFgqVjBUCqxVsNc2s4z",
+      "modules": [
+        "private_nft"
+      ]
+    }
+```
+
+```
+VITE_PACKAGE_ID="0xCONTRACT_ADDRESS" # confirm using explorer the contract is indeed published
+VITE_ACTIVE_NETWORK="devnet" # should be devnet
+VITE_BACKEND="http://localhost:3000" # where the backend is running on
+```
 
 This sets the default server running at `http://localhost:3000`. This can be changed in `backend/server.ts#175` by modifying the number after `app.listen(3000 ...)`.
 
-### Running the demo
+## Configure Backend
 
-This project has a backend, a frontend and a move contract that can be found respectively in:
-`app/`, `backend/` and `package/`.
+The backend server holds the S3 credentials and also the stores the user address maps to users' encryption keys. It supports endpoints that does the obfuscation and 
+Copy the `backend/env.example` file to `backend/.env`. 
 
-Copy the `backend/env.example` file to `backend/.env` and edit the bucket values according to your S3 configurations as follows: 
+### Set up AWS S3 (or storage solution of your choice)
+
+This example uses AWS S3 to store resources such as obfuscated image and the ciphertext. This part can be modified for other storage solutions, feel free to skip this section if not needed. For the purpose of this demo, an AWS S3 bucket can be set up as following:
+
+1. Go to https://aws.amazon.com/s3/
+2. Create a bucket with a name. Edit the BUCKET_NAME value in `backend/.env` with this name. 
+3. Select "ACLs enabled", unselect "Block all public access" and acknowledge the warining. Leave everything as default. the "Create Bucket". 
+![Bucket setting](assets/bucket-setting.png)
+![Bucket setting continued](assets/bucket-setting-2.png)
+4. Go to IAM (search from AWS services, e.g. https://us-east-1.console.aws.amazon.com/iam/home?region=us-east-1#/users). Go to "Users" then "Create User" with any name. 
+![Create user](assets/create-user.png)
+5. Choose "Attach policies directly" then select "AmazonS3FullAccess". Click "Next", leave everything unchanged, then click "Create user".
+![Permission](assets/iam-permission.png)
+6. Choose "Application running outside AWS", then "Create Access Key", copy the "Access key" value to BUCKET_KEY and the "Secret access key" value to BUCKET_SECRET to `backend/.env`. 
+![Access key](assets/access-key.png)
+![Access key secret](assets/access-key-and-secret.png)
+
+The final `backend/.env` should be populated as follows:
 ```
-BUCKET_REGION="us-east-1" # ca;
-BUCKET_ADDRESS="s3://..."
-BUCKET_NAME="my_bucket"
-BUCKET_FOLDER="encryptedNFT"
-BUCKET_KEY="..."
-BUCKET_SECRET="..."
+BUCKET_REGION="us-east-1" # can be found in properties tab for the bucket. 
+BUCKET_ADDRESS="https://s3.us-east-1.amazonaws.com" # update the region substring if needed, the rest of the string should not change. 
+BUCKET_NAME="my-enft-bucket" # update to the bucket name from step 2. 
+BUCKET_FOLDER="encryptedNFT" # this can any value you define, all resources will be saved in this folder. 
+BUCKET_KEY="..." # update to access key value from step 6
+BUCKET_SECRET="..." update to the secret access key value from step 6
 ```
 
-This example uses AWS S3 to store resources. This can be modified for other storage solutions. To set up an AWS S3 bucket, go to https://aws.amazon.com/s3/ and create a bucket with a name, then update `backend/.env`. 
+## Run backend and frontend
 
-
-Copy `app/.env.example` to  `app/.env` file and edit the following:
-
-```
-VITE_PACKAGE_ID="0xCONTRACT_ADDRESS" # see contract address from the previous publishing step
-VITE_ACTIVE_NETWORK="testnet" // or the network your contract lives in.
-VITE_BACKEND="http://localhost:3000" // or whichever port your backend is listening to.
-```
 To run the backend, from `backend/` run `pnpm install && pnpm dev`.
 In another tab, to run the frontend, from `app/` run `pnpm install && pnpm dev`.
 
