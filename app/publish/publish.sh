@@ -34,7 +34,7 @@ echo "Admin address used for publishing: ${ACTIVE_ADMIN_ADDRESS}"
 ACTIVE_NETWORK=$(sui client active-env)
 echo "Environment used is: ${ACTIVE_NETWORK}"
 
-publish_res=$(sui client publish --gas-budget 2000000000 --json ../../package/)
+publish_res=$(sui client publish --gas-budget 1000000000 --json ../../package/)
 
 echo ${publish_res} >.publish.res.json
 
@@ -61,7 +61,7 @@ fi
 cat >../.env<<-ENV
 VITE_PACKAGE_ID=$PACKAGE_ID
 VITE_ACTIVE_NETWORK=$ACTIVE_NETWORK
-VITE_BACKEND="http://localhost:3000"
+VITE_BACKEND="http://localhost:3000/"
 ENV
 
-echo "Encrypted NFT package published!"
+echo "Encrypted NFT package published, if no errors in publish.res.json"

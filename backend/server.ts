@@ -9,12 +9,10 @@ import {
   deobfuscate,
   encryptSecretKeyBLS,
   decryptSecretKeyBLS,
-  serializeToHex,
   generatePrivateKey,
 } from "./images/obfuscate";
 import * as crypto from "crypto";
 import { uploadCiphertext, deleteItem, uploadImage } from "./images/bucket";
-import { enc } from "crypto-js";
 import { generateProof } from "./images/proof";
 import { bls12_381 } from "@noble/curves/bls12-381";
 
