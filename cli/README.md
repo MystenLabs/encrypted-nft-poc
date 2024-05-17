@@ -1,4 +1,8 @@
-# CLI
+# Encrypted NFT CLI
+
+This serves as a reference implementation for the encrypted NFT demo in Rust. Here we implement the key generation, encryption, decryption, transfer (where a new encryption is produced and an equality proof is generated), and onchain verification function in Rust. 
+
+We also include a reference implementation for key derivations for BLS encryption key standard in Sui, proposed in [SIP](https://github.com/sui-foundation/sips/pull/23). 
 
 ```
 cd cli/
