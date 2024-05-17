@@ -65,7 +65,7 @@ Original nft saved to original_nft.png. This is identical with capy.png
 
 ## Generate and Derive Encryption Key
 
-1. User private key model
+1. User private key model (Reference implementation for [SIP](https://github.com/sui-foundation/sips/pull/23))
 ```
 cd cli/
 cargo build --release

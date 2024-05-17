@@ -68,6 +68,8 @@ If there is no error in`.publish.res.json`, the contract is published successful
     }
 ```
 
+The `app/.env` should look like the following: 
+
 ```
 VITE_PACKAGE_ID=0xCONTRACT_ADDRESS # confirm using explorer the contract is indeed published
 VITE_ACTIVE_NETWORK=devnet # should be devnet
@@ -113,5 +115,17 @@ BUCKET_SECRET="..." update to the secret access key value from step 6
 To run the backend, from `backend/` run `pnpm install && pnpm dev`.
 In another tab, to run the frontend, from `app/` run `pnpm install && pnpm dev`.
 
-### Exploring the demo
-Open a browser and navigate to frontend localhost (by default). If you changed the port, input the correct port.
+## Exploring the demo
+
+Open a browser and navigate to frontend localhost (by default). If you changed the port, input the correct port. 
+![Connect wallet](assets/image.png)
+![Upload image](assets/image-1.png)
+![Enter metadata](assets/image-2.png)
+![Mint](assets/image-3.png)
+![Explorer object](assets/image-4.png)
+![Transfer to a recipient](assets/image-5.png)
+![The recipient can deobfuscate](assets/image-6.png)
+
+## CLI 
+
+We also provide all implementations in Rust, see `cli/` for code and [cli/README.md](cli/README.md) for instructions. 

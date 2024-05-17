@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { TextField } from "@radix-ui/themes";
 import SearchIcon from "../../assets/search.svg";
 

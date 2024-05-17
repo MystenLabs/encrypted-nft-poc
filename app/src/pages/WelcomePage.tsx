@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Box, Flex, Heading } from "@radix-ui/themes";
 import { ConnectButton } from "@mysten/dapp-kit";
 import logo from "../../assets/Logo.svg";

@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 /* step 1 of sell NFT process */
 import { useDropzone } from "react-dropzone";
 import { Box, Flex, Heading, Button } from "@radix-ui/themes";

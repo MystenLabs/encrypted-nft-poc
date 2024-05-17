@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module package::private_nft {
     use sui::bls12381;
     use sui::hash::blake2b256;
@@ -128,16 +131,12 @@ module package::private_nft {
         // != (prev_enc_msk.ciphertext - curr_enc_msk.ciphertext) * c + proof.v
         
         // Check if a3 = c*(ct2 - ct1) + z1*eph1 - z2*pk2
-        let scalars = vector::singleton(c);
-        vector::push_back(&mut scalars, bls12381::scalar_neg(&c));
-        vector::push_back(&mut scalars, proof.s1);
-        vector::push_back(&mut scalars, bls12381::scalar_neg(&proof.s2));
-        let points = vector::singleton(enc2.ciphertext);
-        vector::push_back(&mut points, enc1.ciphertext);
-        vector::push_back(&mut points, enc1.ephemeral);
-        vector::push_back(&mut points, *pk2);
-        let lhs = bls12381::g1_multi_scalar_multiplication(&scalars, &points);
-        if (!group_ops::equal(&lhs, &proof.v)) {
+        let lhs1 = bls12381::g1_identity();
+        lhs1 = bls12381::g1_add(&lhs1, &bls12381::g1_mul(&c, &enc2.ciphertext));
+        lhs1 = bls12381::g1_add(&lhs1, &bls12381::g1_mul(&bls12381::scalar_neg(&c), &enc1.ciphertext));
+        lhs1 = bls12381::g1_add(&lhs1, &bls12381::g1_mul(&proof.s1, &enc1.ephemeral));
+        lhs1 = bls12381::g1_add(&lhs1, &bls12381::g1_mul(&bls12381::scalar_neg(&proof.s2), pk2));
+        if (!group_ops::equal(&lhs1, &proof.v)) {
             return false
         };
         return true

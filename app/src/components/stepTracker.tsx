@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Box, Flex } from "@radix-ui/themes";
 import checkIcon from "../../assets/check.svg";
 import lineIcon from "../../assets/tracker_line.svg";

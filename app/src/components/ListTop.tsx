@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Heading, Button } from "@radix-ui/themes";
 import ArrowLeft from "../../assets/arrow_left.svg";
 import { Dispatch, SetStateAction } from "react";

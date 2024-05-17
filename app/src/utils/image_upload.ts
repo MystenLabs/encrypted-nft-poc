@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { S3, PutObjectCommand, ObjectCannedACL } from "@aws-sdk/client-s3";
 
 const public_read: ObjectCannedACL = "public-read";

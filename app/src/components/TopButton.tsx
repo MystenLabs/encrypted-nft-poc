@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Button } from "@radix-ui/themes";
 import icon from "../../assets/arrow-up-right.svg";
 
