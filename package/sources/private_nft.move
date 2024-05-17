@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 module package::private_nft {
     use sui::bls12381;
     use sui::hash::blake2b256;

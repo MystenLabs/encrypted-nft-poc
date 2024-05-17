@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Box, Flex, Button } from "@radix-ui/themes";
 import { useMarket } from "../web3hooks";
 import { useSignAndExecuteTransactionBlock } from "@mysten/dapp-kit";

@@ -1,4 +1,7 @@
-import { Box, Flex } from "@radix-ui/themes";
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { Flex } from "@radix-ui/themes";
 import { useState } from "react";
 import {ListTop} from "../components/ListTop";
 import {ListBot} from "../components/ListBot";

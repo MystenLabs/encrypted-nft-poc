@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Flex, Button, Heading, Box, TextArea } from "@radix-ui/themes";
 import { useCallback, useState, useRef, useEffect } from "react";
 import {

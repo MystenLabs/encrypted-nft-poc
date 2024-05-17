@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Flex, Box, Button } from "@radix-ui/themes";
 import { useMarket } from "../web3hooks";
@@ -9,8 +12,7 @@ import "../styles/marketplace.css";
 
 export const PersonalSpace = () => {
   const { getOwnedNFTs } = useMarket();
-  const [filteredData, setFilteredData] = useState([]);
-  const [isFilterPushed, setIsFilterPushed] = useState(false);
+  const [isFilterPushed] = useState(false);
   const [nftIndex, setNftIndex] = useState(-1);
 
   const account = useCurrentAccount();

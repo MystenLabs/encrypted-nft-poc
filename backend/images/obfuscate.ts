@@ -1,3 +1,6 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { Image } from "image-js";
 import * as crypto from "crypto";
 import { PrivateKey } from "eciesjs";

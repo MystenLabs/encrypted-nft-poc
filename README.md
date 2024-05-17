@@ -68,6 +68,8 @@ If there is no error in`.publish.res.json`, the contract is published successful
     }
 ```
 
+The `app/.env` should look like the following: 
+
 ```
 VITE_PACKAGE_ID=0xCONTRACT_ADDRESS # confirm using explorer the contract is indeed published
 VITE_ACTIVE_NETWORK=devnet # should be devnet

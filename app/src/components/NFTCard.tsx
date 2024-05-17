@@ -1,7 +1,7 @@
-import { Flex, Box, Link} from "@radix-ui/themes";
-import {
-  useCurrentAccount,
-} from "@mysten/dapp-kit";
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+import { Flex } from "@radix-ui/themes";
 import "../styles/tooltip.css";
 import SuiSymbol from "../../assets/sui-symbol.svg";
 interface NFTCardProps {
