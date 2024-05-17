@@ -1,8 +1,8 @@
 # Encrypted NFT Demo
 
-This is an end to end implementation of the Encrypted NFT construction. The project consists of a Move smart contract packag (`package/`), the application frontend (`app/`) and the backend server (`backend/`). 
+This is an end to end implementation of the Encrypted NFT construction. The project consists of a Move smart contract package (`package/`), the application frontend (`app/`) and the backend server (`backend/`).
 
-We first install Sui CLI for various utility operations. Then we go over how to deploy the smart contract, configure and run the backend and application frontend for the complete demo. 
+Here we go over how to deploy the smart contract, configure and run the backend and application frontend for the complete demo. 
 
 ## Install Sui CLI
 
@@ -14,7 +14,7 @@ sui client new-env --alias devnet --rpc https://fullnode.devnet.sui.io:443
 sui client switch --env devnet
 ```
 
-Then make sure the active environment is devnet, and also confirm an active address is present in keystore. This corresponds to the private key for deploying the smart contract. 
+Then make sure the active environment is devnet, and also confirm an active address is present in the keystore. This corresponds to the private key for deploying the smart contract.
 
 ```
 sui client active-env
@@ -28,7 +28,7 @@ sui client new-address secp256k1
 sui client switch --address 0xYOUR_ADDRESS
 ```
 
-Request some test coins from the devnet faucet, replace the recipeint with the active address from above: 
+Request some test coins from the devnet faucet, replace the recipient with the active address from above:
 
 ```bash
 curl --location --request POST 'https://faucet.devnet.sui.io/gas' \
@@ -80,10 +80,15 @@ This sets the default server running at `http://localhost:3000`. This can be cha
 
 ## Configure Backend
 
-The backend server holds the S3 credentials and also the stores the user address maps to users' encryption keys. It supports endpoints that does the obfuscation and 
-Copy the `backend/env.example` file to `backend/.env`. 
+The backend server holds the AWS S3 credentials and also stores the user address maps to users' encryption keys. It exposes endpoints that take an image and do the obfuscation, encryption and decryption based on the corresponding keys for the user address. It also obfuscated NFT and its ciphertext to S3 with its configured access keys.
+
+Note that this backend serves as a demo purpose, an authentication system for a key server should be in place in production for all requests for decryption. This is because anyone who has access to the encryption private key can decrypt all private NFTs from ciphertext to its original form. 
+
+Alternatively, one can implement a wallet client that keeps an encryption private key secure and does encryption and decryption in place. See more in [Encryption Key Management](#encryption-key-management) for discussion.
 
 ### Set up AWS S3 (or storage solution of your choice)
+
+Copy the `backend/env.example` file to `backend/.env`. 
 
 This example uses AWS S3 to store resources such as obfuscated image and the ciphertext. This part can be modified for other storage solutions, feel free to skip this section if not needed. For the purpose of this demo, an AWS S3 bucket can be set up as following:
 
@@ -129,3 +134,13 @@ Open a browser and navigate to frontend localhost (by default). If you changed t
 ## CLI 
 
 We also provide all implementations in Rust, see `cli/` for code and [cli/README.md](cli/README.md) for instructions. 
+
+## Encryption Key Management Considerations
+
+1. Wallet client: An encryption key can be managed by a non-custodial cryptocurrency wallet. With a wallet, the decryption operation with the private key happens in a secure context. To avoid additional burden to manage an additional encryption key, we propose [SIP](https://github.com/sui-foundation/sips/pull/23) that leverages the key derivation path from wallet pre-existing master private key. If adopted by ecosystem wallets, users can import and export private key or mnemonics and a persistent encryption key can be derived and used everywhere.
+
+2. Key server: There are scenarios where a master private key is not available, such as zkLogin and Multisig wallet. We therefore propose an example key server design in this [SIP](https://github.com/sui-foundation/sips/pull/26/files).
+
+## Encryption Key Discoverability
+
+The current implementation requires the buyer to first post his encryption public key when making an offer to buy. However, since the encryption public key is persistent and can be visible to anyone, we propose a standard ([SIP](https://github.com/sui-foundation/sips/pull/29))to make an encryption public key discoverable. This way, a seller can immediately deliver the encrypted NFT once the buyer had made an offer. 
