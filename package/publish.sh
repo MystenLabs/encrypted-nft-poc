@@ -23,20 +23,15 @@ if [ $# -ne 0 ]; then
   fi
 fi
 
-echo "- Admin Address is: ${ADMIN_ADDRESS}"
-
-import_address=$(sui keytool import "$ADMIN_PHRASE" ed25519)
-
-switch_res=$(sui client switch --address ${ADMIN_ADDRESS})
 
 ACTIVE_ADMIN_ADDRESS=$(sui client active-address)
 echo "Admin address used for publishing: ${ACTIVE_ADMIN_ADDRESS}"
 ACTIVE_NETWORK=$(sui client active-env)
 echo "Environment used is: ${ACTIVE_NETWORK}"
 
-publish_res=$(sui client publish --gas-budget 1000000000 --json ../../package/)
+publish_res=$(sui client publish --gas-budget 2000000000 --json)
 
-echo ${publish_res} >.publish.res.json
+echo ${publish_res} >./publish.res.json
 
 # Check if the command succeeded (exit status 0)
 if [[ "$publish_res" =~ "error" ]]; then
@@ -58,7 +53,7 @@ if [ $# -eq 0 ]; then
   suffix=".localnet"
 fi
 
-cat >../.env<<-ENV
+cat > ../app/.env<<-ENV
 VITE_PACKAGE_ID=$PACKAGE_ID
 VITE_ACTIVE_NETWORK=$ACTIVE_NETWORK
 VITE_BACKEND="http://localhost:3000/"

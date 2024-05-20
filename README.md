@@ -116,13 +116,14 @@ BUCKET_SECRET="..." update to the secret access key value from step 6
 ```
 
 ## Run backend and frontend
+This example uses AWS S3 to store resources. This can be modified for other storage solutions. To set up an AWS S3 bucket, go to https://aws.amazon.com/s3/ and create a bucket with a name, then update `backend/.env`.
 
 To run the backend, from `backend/` run `pnpm install && pnpm dev`.
 In another tab, to run the frontend, from `app/` run `pnpm install && pnpm dev`.
 
 ## Exploring the demo
 
-Open a browser and navigate to frontend localhost (by default). If you changed the port, input the correct port. 
+Open a browser and navigate to frontend `localhost:5173` (by default). If you changed the port, input the correct port. 
 ![Connect wallet](assets/image.png)
 ![Upload image](assets/image-1.png)
 ![Enter metadata](assets/image-2.png)
@@ -144,3 +145,9 @@ We also provide all implementations in Rust, see `cli/` for code and [cli/README
 ## Encryption Key Discoverability
 
 The current implementation requires the buyer to first post his encryption public key when making an offer to buy. However, since the encryption public key is persistent and can be visible to anyone, we propose a standard ([SIP](https://github.com/sui-foundation/sips/pull/29))to make an encryption public key discoverable. This way, a seller can immediately deliver the encrypted NFT once the buyer had made an offer. 
+
+
+### AWS S3 setup
+
+When creating the bucket make it public with ACL enabled with the option `Bucket Owner preffered`.
+Next create an IAM user to get the access key and secret and explained here.
