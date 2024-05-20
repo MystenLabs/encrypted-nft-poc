@@ -150,4 +150,4 @@ The current implementation requires the buyer to first post his encryption publi
 ### AWS S3 setup
 
 When creating the bucket make it public with ACL enabled with the option `Bucket Owner preffered`.
-Next create an IAM user to get the access key and secret and explained here.
+Next create an IAM user to get the access key and secret and explained <a href="https://blog.devgenius.io/upload-files-to-s3-on-frontend-80436293">here</a>.
