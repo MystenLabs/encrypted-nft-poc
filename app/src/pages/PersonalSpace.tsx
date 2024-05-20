@@ -50,16 +50,6 @@ export const PersonalSpace = () => {
   else if (nftIndex === -1) {
     return (
       <Box style={{ height: "100%" }}>
-        <Button
-          style={{
-            backgroundColor: isFilterPushed ? "black" : "white",
-            color: isFilterPushed ? "white" : "black",
-            borderRadius: "24px",
-          }}
-          // onClick={filterMine}
-        >
-          Mine
-        </Button>
         <Flex
           gap="2"
           wrap="wrap"

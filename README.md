@@ -51,7 +51,7 @@ sui client active-env
 
 # build package and publish using the script
 sui move build
-cd app/publish/
+cd package/publish/
 ./publish.sh 
 ```
 If there is no error in`.publish.res.json`, the contract is published successfully and an `app/.env` file is created with the package id and the network you published to.
