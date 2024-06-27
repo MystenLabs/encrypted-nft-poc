@@ -1,34 +1,31 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-use std::str::FromStr;
-
-use crate::key_derive::derive_key;
-use crate::utils::load_image;
-use crate::utils::{load_and_sample_image, save_image};
 use bip32::DerivationPath;
 use bip39::{Language, Mnemonic, MnemonicType};
 use clap::Parser;
+use enft_cli::key_derive::derive_key;
+use enft_cli::key_derive::derive_private_key;
+use enft_cli::utils::load_and_sample_image;
+use enft_cli::utils::load_image;
+use enft_cli::utils::msk_to_cipher;
+use enft_cli::utils::recover_image;
+use enft_cli::utils::save_image;
+use enft_cli::FullCipherText;
 use fastcrypto::aes::Cipher;
 use fastcrypto::aes::InitializationVector;
 use fastcrypto::encoding::{Encoding, Hex};
-use fastcrypto::groups::bls12381::{G1Element, Scalar, SCALAR_LENGTH};
+use fastcrypto::groups::bls12381::{G1Element, Scalar};
 use fastcrypto::hash::Blake2b256;
-use fastcrypto::hmac::{hkdf_sha3_256, HkdfIkm};
 use fastcrypto::serde_helpers::ToFromByteArray;
-use fastcrypto::traits::{Generate, ToFromBytes};
+use fastcrypto::traits::Generate;
 use fastcrypto::{
     groups::{GroupElement, Scalar as ScalarTrait},
     hash::HashFunction,
 };
-use rand::rngs::StdRng;
-use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use typenum::U12;
-use utils::{msk_to_cipher, recover_image};
-
-pub mod key_derive;
-pub mod utils;
 
 #[derive(Parser)]
 #[command(name = "enft-cli")]
@@ -180,13 +177,6 @@ pub struct EqualityProof {
     pub u1: G1Element, // a1
     pub u2: G1Element, // a2
     pub v: G1Element,  // a3
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct FullCipherText {
-    pub pixels: Vec<(usize, usize)>,
-    pub iv: InitializationVector<U12>,
-    pub data: Vec<u8>,
 }
 
 fn main() {
@@ -424,16 +414,11 @@ fn execute(cmd: Command) -> Result<(), std::io::Error> {
         }
         Command::DeriveEncryptionKey(args) => {
             let master_key = Hex::decode(&args.master_key).unwrap();
-            let bytes = hkdf_sha3_256(
-                &HkdfIkm::from_bytes(&master_key).unwrap(),
-                args.app_id.as_bytes(),
-                args.user_id.as_bytes(),
-                SCALAR_LENGTH,
-            )
-            .unwrap();
-
-            let mut rng = StdRng::from_seed(bytes.try_into().unwrap());
-            let private_key = Scalar::rand(&mut rng);
+            let private_key = derive_private_key(
+                &master_key,
+                &args.app_id.into_bytes(),
+                &args.user_id.into_bytes(),
+            );
             let gen = G1Element::generator();
             let public_key = gen * private_key;
             println!(
