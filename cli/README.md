@@ -89,8 +89,8 @@ Public encryption key: "ad3c8fce5b5f1fb04ecb70c3cb2c1661cee3018c91ad891e744a1bf1
 
 2. Custodial server model (Reference implementation for [SIP](https://github.com/sui-foundation/sips/pull/27))
 ```
-target/release/enft-cli derive-encryption-key -m 257f94f04abdc37734e8e637085f9a04eac0a2b81c5a0d39d88d1fa2db12a643 -a example_app -u 1
+target/release/enft-cli derive-encryption-key -m 0000000000000000000000000000000000000000000000000000000000000000 -a example_app -u 0
 
-Private encryption key: "2ed7c0d6eb901a9a65f7ce19dca358f1889101588d3a5482f087bf334439b7c4"
-Public encryption key: "a8c558b25cc2d74f05abf265ad956b83c375a4efb0bc61b29d038d4b87dce126736a772e4f5a41c24d2b409a88af6da5"
+Private encryption key: "1951b5a79806a7c503c9456b7e20e46a37e2bf3c59b42d351b268b7a3a4bce1b"
+Public encryption key: "8846743e175869c7fe8906aa24b22e24caaf8059125cbc944f9b38e77756665fa5e13b3e97203de7ad32d1c12e7ca5df"
 ```
