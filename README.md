@@ -1,3 +1,60 @@
+
+# Encrypted NFT Overview 
+
+Encrypted NFTs introduce a new paradigm in digital asset management by offering on-chain privacy for NFTs. By incorporating encryption to cloak NFTs partially, this model ensures that detailed content of the digital asset is exclusively accessible to the NFT owner. This level of exclusivity elevates the value and uniqueness of the digital asset, and also enables applications such as freemium access models and try-before-you-buy features. 
+
+This innovative framework leverages Sui's native on-chain primitives in Move, such as Elliptic Curve operations and Zero Knowledge proof for ElGamal encryption consistency.
+
+Here we describe a general listing and sales flow that involves the NFT creator and the buyer, see the diagram below.
+
+![Overview](./enft.jpeg)
+
+1. The creator generates a master encryption key off-chain. 
+2. The creator encrypts the image to ciphertext using the master encryption key off-chain.
+3. The creator selects or randomly defines the bytes that he wishes to be obfuscated on-chain. Then he generates the ciphertext encrypted under the master key. 
+4. The creator lists the obfuscated image, ciphertext on-chain for sale. 
+5. A buyer submits an offer to buy with payment and his public key. 
+6. The creator accepts the offer by producing the new ciphertext encrypted under the master encryption key, and the encrypted master key encrypted under the buyer's public key, and its Elgamal encryption consistency proof. 
+7. If the proof is verified on-chain, the creator claims the payment, as well as transfers the ciphertext and the encrypted master key to the buyer. 
+8. The buyer downloads the encrypted master key and decrypts it using his own private key. He then downloads the ciphertext and decrypts it using the master key. 
+9. In the resell flow, the seller does not no need to perform master key generation, step 2-7 remains the same, as the creator is now the reseller. 
+
+## Smart Contract
+
+At minimum, the smart contract is required to implement the following: 
+
+1. When the seller lists the item: The seller must list the ciphertext and its encrypted master key.
+
+2. When the buyer makes an offer: The buyer must submit the payment along with his public key.
+
+3. When the seller accepts an offer, the seller must provide the current encrypted master key under the buyer's public key, along with the encryption equality proof to show the new encrypted master key is consistent with the encrypted master key under the owner's public key. As part of this step, the proof must be verified as implemented in `fun equality_verify` for the seller to claim the payment.
+
+We provide a complete implementation in this repo with its example frontend and backend code. 
+
+## Terminology and Notations
+
+### Master encryption key
+
+The is an symmetric encryption key used to encrypt and decrypt between the original image and the ciphertext. This master key does not change by ownerships, so every buyer and seller that were able to decrypt the image can alway decrypt it and has the master key. 
+
+In this implementation, the master key is represented as a G1 element and is converted to an AES key, an AES256 cipher in GCM-mode (authenticated) using the given nonce size 32.
+
+### Public key encryption
+
+The master key is encrypted under the buyer's public key, therefore only the buyer can decrypt the encrypted master key to the original master key. 
+
+In this implementation, the private key is a scalar and the public key is a BLS G1 element.
+
+### Encryption Key Management Considerations
+
+1. Wallet client: An encryption key can be managed by a non-custodial cryptocurrency wallet. With a wallet, the decryption operation with the private key happens in a secure context. To avoid additional burden to manage an additional encryption key, we propose [SIP](https://github.com/sui-foundation/sips/pull/23) that leverages the key derivation path from wallet pre-existing master private key. If adopted by ecosystem wallets, users can import and export private key or mnemonics and a persistent encryption key can be derived and used everywhere.
+
+2. Key server: There are scenarios where a master private key is not available, such as zkLogin and Multisig wallet. We therefore propose an example key server design in this [SIP](https://github.com/sui-foundation/sips/pull/26/files).
+
+### Encryption Key Discoverability
+
+The current implementation requires the buyer to first post his encryption public key when making an offer to buy. However, since the encryption public key is persistent and can be visible to anyone, we propose a standard ([SIP](https://github.com/sui-foundation/sips/pull/29))to make an encryption public key discoverable. This way, a seller can immediately deliver the encrypted NFT once the buyer has made an offer. 
+
 # Encrypted NFT Demo
 
 This is an end to end implementation of the Encrypted NFT construction. The project consists of a Move smart contract package (`package/`), the application frontend (`app/`) and the backend server (`backend/`).
